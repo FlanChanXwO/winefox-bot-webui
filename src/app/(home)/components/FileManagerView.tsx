@@ -1,0 +1,470 @@
+"use client";
+
+import React, {useEffect, useState, useRef} from "react";
+import {
+    Card, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
+    Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Spinner
+} from "@nextui-org/react";
+import {
+    FilePlus,
+    FolderPlus,
+    RefreshCw,
+    FolderOpen,
+    FileText,
+    Pencil,
+    Download,
+    Trash2,
+    ChevronRight,
+    CornerUpLeft,
+    Image as ImageIcon
+} from "lucide-react";
+import {toast} from "sonner";
+import {
+    createFile, deleteFile, FileItem, getFileContent, getFiles, getDownloadUrl, getViewUrl, saveFileContent
+} from "@/api/fileManager";
+
+// --- 辅助函数：判断是否为图片 ---
+const isImageFile = (filename: string) => {
+    return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(filename);
+};
+
+export default function FileManagerView() {
+    // 状态管理
+    const [currentPath, setCurrentPath] = useState<string>(""); // 当前路径，空字符串表示根目录
+    const [inputPath, setInputPath] = useState<string>(""); // 输入框中的路径
+    const [fileList, setFileList] = useState<FileItem[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // 模态框控制
+    const {isOpen: isCreateOpen, onOpen: onCreateOpen, onOpenChange: onCreateChange} = useDisclosure();
+    const {isOpen: isEditOpen, onOpen: onEditOpen, onOpenChange: onEditChange} = useDisclosure();
+    const {isOpen: isImgOpen, onOpen: onImgOpen, onOpenChange: onImgChange} = useDisclosure();
+    const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onOpenChange: onDeleteChange } = useDisclosure();
+
+    // 临时状态
+    const [createType, setCreateType] = useState<"file" | "folder">("file");
+    const [newItemName, setNewItemName] = useState("");
+    const [editingFile, setEditingFile] = useState<{ path: string; name: string } | null>(null);
+    const [editorContent, setEditorContent] = useState("");
+    const [previewImgUrl, setPreviewImgUrl] = useState("");
+    const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // 只有当正在编辑模式打开时才生效
+            if (!isEditOpen) return;
+
+            // 检测 Ctrl + S (Windows/Linux) 或 Command + S (Mac)
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault(); // 阻止浏览器默认的“保存网页”行为
+                console.log("触发快捷键保存");
+                handleSaveContent(() => {
+                });
+            }
+        };
+
+        // 添加监听
+        window.addEventListener('keydown', handleKeyDown);
+
+        // 清理监听
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isEditOpen, editorContent, editingFile]); // 依赖项很重要，确保能拿到最新的 content
+
+    // 初始化加载
+    useEffect(() => {
+        fetchFiles(currentPath);
+        setInputPath(currentPath);
+    }, [currentPath]);
+
+    // --- API 交互 ---
+
+    // 1. 获取文件列表
+    const fetchFiles = async (path: string) => {
+        setIsLoading(true);
+        try {
+            const res = await getFiles(path);
+            if (res.success && res.data) {
+                setFileList(res.data);
+            } else {
+                toast.error(res.message || "加载失败");
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("网络错误");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 2. 创建文件/文件夹
+    const handleCreate = async (onClose: () => void) => {
+        if (!newItemName.trim()) return toast.warning("名称不能为空");
+        try {
+            const res = await createFile(currentPath, newItemName, createType === "folder");
+            if (res.success) {
+                toast.success("创建成功");
+                onClose();
+                fetchFiles(currentPath);
+                setNewItemName("");
+            } else {
+                toast.error(res.message);
+            }
+        } catch (e) {
+            toast.error("请求失败");
+        }
+    };
+
+    // 3. 删除文件
+    // 3.1 用户点击列表中的垃圾桶图标 -> 打开确认框
+    const handleDeleteClick = (file: FileItem) => {
+        setFileToDelete(file); // 记录要删谁
+        onDeleteOpen();        // 打开弹窗
+    };
+
+    // 3.2 用户在弹窗里点击“确定” -> 执行 API
+    const handleConfirmDelete = async () => {
+        if (!fileToDelete) return;
+
+        setIsDeleting(true); // 开启按钮 loading
+        try {
+            const res = await deleteFile(fileToDelete.path);
+            if (res.success) {
+                toast.success("删除成功");
+                fetchFiles(currentPath); // 刷新列表
+                onDeleteChange();        // 关闭弹窗 (NextUI 的 onClose 逻辑)
+            } else {
+                toast.error(res.message);
+            }
+        } catch (e) {
+            toast.error("删除失败");
+        } finally {
+            setIsDeleting(false); // 关闭 loading
+            setFileToDelete(null); // 清理状态
+        }
+    };
+
+
+    // 4. 打开编辑器
+    const openEditor = async (file: FileItem) => {
+        // 检查大小，防止浏览器卡死 (比如 > 1MB 不让编辑)
+        if (file.rawSize > 1024 * 1024) {
+            toast.warning("文件过大，不支持在线编辑");
+            return;
+        }
+
+        try {
+            const res = await getFileContent(file.path);
+            if (res.success && res.data) {
+                setEditorContent(res.data.content);
+                setEditingFile({path: file.path, name: file.name});
+                onEditOpen();
+            } else {
+                toast.error(res.message);
+            }
+        } catch (e) {
+            toast.error("读取文件失败");
+        }
+    };
+
+    // 5. 保存文件
+    const handleSaveContent = async (onClose: () => void) => {
+        if (!editingFile) return;
+        try {
+            const res = await saveFileContent(editingFile.path, editorContent);
+            if (res.success) {
+                toast.success("保存成功");
+                onClose();
+            } else {
+                toast.error(res.message);
+            }
+        } catch (e) {
+            toast.error("保存失败");
+        }
+    };
+
+    // 6. 处理行点击 (单击进入目录，单击预览图片)
+    const handleRowClick = (file: FileItem) => {
+        if (file.type === "folder") {
+            setCurrentPath(file.path);
+        } else if (isImageFile(file.name)) {
+            setPreviewImgUrl(getViewUrl(file.path));
+            onImgOpen();
+        } else if (file.editable) {
+            openEditor(file);
+        } else {
+            // 普通文件单击暂时不做操作，或者可以选中
+        }
+    };
+
+    // 7. 下载
+    const handleDownload = (path: string) => {
+        const link = document.createElement('a');
+        link.href = getDownloadUrl(path);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // 8. 路径回退逻辑
+    const handleGoUp = () => {
+        if (!currentPath || currentPath === "/") return;
+        // 简单处理：根据分隔符截取
+        // Windows: D:\project\src -> D:\project
+        // Linux: /var/www/html -> /var/www
+        const separator = currentPath.includes("/") ? "/" : "\\";
+        const lastIndex = currentPath.lastIndexOf(separator);
+
+        if (lastIndex <= 0) {
+            // 如果只剩根目录 (如 D:\ 或 /)
+            setCurrentPath(""); // 空字符串代表列出根驱动器
+        } else {
+            setCurrentPath(currentPath.substring(0, lastIndex));
+        }
+    };
+
+    return (
+        <div className="flex flex-col h-full gap-4 px-6 pb-4">
+            {/* 顶部路径栏 */}
+            <Card className="bg-white/80 border-none shadow-sm flex-none">
+                <CardBody className="py-2 px-4 flex flex-row items-center gap-2">
+                    <Button isIconOnly size="sm" variant="light" onPress={handleGoUp} isDisabled={!currentPath}>
+                        <CornerUpLeft size={18}/>
+                    </Button>
+                    <Input
+                        size="sm"
+                        value={inputPath}
+                        onValueChange={setInputPath}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') setCurrentPath(inputPath);
+                        }}
+                        placeholder="输入路径按回车跳转..."
+                        startContent={<span className="text-pink-400 mr-1">/</span>}
+                        className="flex-1"
+                        classNames={{inputWrapper: "bg-gray-100/50 hover:bg-gray-100"}}
+                    />
+                </CardBody>
+            </Card>
+
+            {/* 工具栏 */}
+            <div className="flex gap-2">
+                <Button
+                    className="bg-pink-400 text-white font-bold"
+                    startContent={<FilePlus size={18}/>}
+                    onPress={() => {
+                        setCreateType("file");
+                        onCreateOpen();
+                    }}
+                >
+                    新建文件
+                </Button>
+                <Button
+                    className="bg-pink-400 text-white font-bold"
+                    startContent={<FolderPlus size={18}/>}
+                    onPress={() => {
+                        setCreateType("folder");
+                        onCreateOpen();
+                    }}
+                >
+                    新建文件夹
+                </Button>
+                <Button
+                    className="bg-blue-400 text-white font-bold min-w-0 px-4"
+                    startContent={<RefreshCw size={18} className={isLoading ? "animate-spin" : ""}/>}
+                    onPress={() => fetchFiles(currentPath)}
+                >
+                    刷新
+                </Button>
+            </div>
+
+            {/* 文件列表 */}
+            <Card className="bg-white/80 border-none shadow-sm flex-1 overflow-hidden">
+                <CardBody className="p-0">
+                    <Table
+                        removeWrapper
+                        aria-label="File Manager Table"
+                        className="h-full overflow-auto"
+                        selectionMode="none" // 改为 none 避免点击行就选中
+                        color="secondary"
+                        isHeaderSticky
+                    >
+                        <TableHeader>
+                            <TableColumn>名称</TableColumn>
+                            <TableColumn>修改时间</TableColumn>
+                            <TableColumn>大小</TableColumn>
+                            <TableColumn width={120} align="center">操作</TableColumn>
+                        </TableHeader>
+                        <TableBody
+                            items={fileList}
+                            loadingContent={<Spinner label="加载中..." color="secondary"/>}
+                            isLoading={isLoading}
+                            emptyContent={"暂无文件"}
+                        >
+                            {(file) => (
+                                <TableRow key={file.id}
+                                          className={`
+                                            ${file.type !== 'folder' || file.editable ? 'cursor-pointer hover:bg-muted/50' : ''} 
+                                            transition-colors
+                                        `}>
+                                    <TableCell>
+                                        {/* 点击名称区域触发进入文件夹/预览 */}
+                                        <div
+                                            className="flex items-center gap-3 w-full h-full py-2 select-none"
+                                            onClick={() => handleRowClick(file)}
+                                        >
+                                            {file.type === 'folder' ? (
+                                                <FolderOpen size={20}
+                                                            className="text-yellow-500 fill-yellow-500 flex-shrink-0"/>
+                                            ) : isImageFile(file.name) ? (
+                                                <ImageIcon size={20} className="text-purple-400 flex-shrink-0"/>
+                                            ) : (
+                                                <FileText size={20} className="text-gray-400 flex-shrink-0"/>
+                                            )}
+                                            <span className="text-gray-700 font-medium truncate">{file.name}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell
+                                        className="text-gray-500 text-sm whitespace-nowrap">{file.date}</TableCell>
+                                    <TableCell
+                                        className="text-gray-500 text-sm whitespace-nowrap">{file.size}</TableCell>
+                                    <TableCell>
+                                        <div className="flex gap-2 justify-center">
+                                            {/* 编辑按钮：仅文件可用 */}
+                                            {file.editable && (
+                                                <Button isIconOnly size="sm" variant="light"
+                                                        onPress={() => openEditor(file)}>
+                                                    <Pencil size={16} className="text-blue-400 hover:text-blue-600"/>
+                                                </Button>
+                                            )}
+
+                                            {/* 下载按钮：仅文件可用 */}
+                                            {file.type === 'file' && (
+                                                <Button isIconOnly size="sm" variant="light"
+                                                        onPress={() => handleDownload(file.path)}>
+                                                    <Download size={16}
+                                                              className="text-green-500 hover:text-green-700"/>
+                                                </Button>
+                                            )}
+
+                                            {/* 删除按钮 */}
+                                        <Button isIconOnly size="sm" variant="light"
+                                        onPress={() => handleDeleteClick(file)}>
+                                        <Trash2 size={16} className="text-red-400 hover:text-red-600"/>
+                                    </Button>
+                                </div>
+                                </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardBody>
+            </Card>
+
+            {/* --- 弹窗组件区域 --- */}
+
+            {/* 1. 新建弹窗 */}
+            <Modal isOpen={isCreateOpen} onOpenChange={onCreateChange}>
+                <ModalContent>
+                    {(onClose) => (
+                        <>
+                            <ModalHeader>新建{createType === 'folder' ? '文件夹' : '文件'}</ModalHeader>
+                            <ModalBody>
+                                <Input
+                                    autoFocus
+                                    label="名称"
+                                    placeholder={`请输入${createType === 'folder' ? '文件夹' : '文件'}名称`}
+                                    value={newItemName}
+                                    onValueChange={setNewItemName}
+                                />
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button variant="light" onPress={onClose}>取消</Button>
+                                <Button color="secondary" onPress={() => handleCreate(onClose)}>确定</Button>
+                            </ModalFooter>
+                        </>
+                    )}
+                </ModalContent>
+            </Modal>
+
+            {/* 2. 编辑器弹窗 */}
+            <Modal isOpen={isEditOpen} onOpenChange={onEditChange} size="5xl" scrollBehavior="inside">
+                <ModalContent className="h-[80vh]">
+                    {(onClose) => (
+                        <>
+                            <ModalHeader className="border-b">正在编辑: {editingFile?.name}</ModalHeader>
+                            <ModalBody className="p-0 flex-1 bg-[#1e1e1e]">
+                                {/* 简易代码编辑器外观 */}
+                                <textarea
+                                    className="w-full h-full bg-transparent text-gray-200 p-4 font-mono text-sm outline-none resize-none"
+                                    value={editorContent}
+                                    onChange={(e) => setEditorContent(e.target.value)}
+                                    spellCheck={false}
+                                />
+                            </ModalBody>
+                            <ModalFooter className="border-t">
+                                <Button variant="light" onPress={onClose}>关闭</Button>
+                                <Button color="secondary" onPress={() => handleSaveContent(onClose)}>保存更改</Button>
+                            </ModalFooter>
+                        </>
+                    )}
+                </ModalContent>
+            </Modal>
+
+            {/* 3. 图片预览弹窗 */}
+            <Modal isOpen={isImgOpen} onOpenChange={onImgChange} size="2xl">
+                <ModalContent>
+                    {(onClose) => (
+                        <>
+                            <ModalBody className="flex justify-center items-center p-4 min-h-[300px]">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={previewImgUrl}
+                                    alt="preview"
+                                    className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                                />
+                            </ModalBody>
+                        </>
+                    )}
+                </ModalContent>
+            </Modal>
+
+
+            {/* 4. 删除确认弹窗 */}
+            <Modal isOpen={isDeleteOpen} onOpenChange={onDeleteChange} backdrop="blur">
+                <ModalContent>
+                    {(onClose) => (
+                        <>
+                            <ModalHeader className="flex flex-col gap-1">确认删除</ModalHeader>
+                            <ModalBody>
+                                <p>
+                                    你确定要删除
+                                    <span className="font-bold text-red-500 mx-1">
+                                        {fileToDelete?.name}
+                                    </span>
+                                    吗？
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    此操作无法撤销，文件将被永久移除。
+                                </p>
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button variant="light" onPress={onClose}>
+                                    取消
+                                </Button>
+                                <Button
+                                    color="danger"
+                                    onPress={handleConfirmDelete}
+                                    isLoading={isDeleting} // 显示转圈圈
+                                >
+                                    确认删除
+                                </Button>
+                            </ModalFooter>
+                        </>
+                    )}
+                </ModalContent>
+            </Modal>
+        </div>
+    );
+}
