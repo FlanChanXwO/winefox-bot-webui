@@ -62,11 +62,13 @@ export default function Home() {
     }, []);
 
 
-
     // 新增：监听窗口大小变化，自动重置侧边栏状态
     // 监听屏幕尺寸变化
     useEffect(() => {
         const handleResize = () => {
+            if (typeof window === "undefined") {
+                return;
+            }
             // 当屏幕变窄（进入移动端模式 < 768px）时
             if (window.innerWidth < 768) {
                 setIsSidebarOpen(false)
@@ -77,58 +79,58 @@ export default function Home() {
         };
         window.addEventListener('resize', handleResize);
         // 记得清理监听器
-        return () => window.removeEventListener('resize', handleResize);
+        return () =>  window.removeEventListener('resize', handleResize);;
     }, []);
 
 
     // 菜单配置
     const menuItems = [
-        { id: "dashboard", label: "仪表盘", icon: <LayoutDashboard size={20} /> },
+        {id: "dashboard", label: "仪表盘", icon: <LayoutDashboard size={20}/>},
         {
             id: "logs",
             label: "日志查看",
-            icon: <Terminal size={20} />,
+            icon: <Terminal size={20}/>,
             hasSubmenu: true,
             submenu: [
-                { id: "logs-live", label: "实时日志", icon: <Terminal size={16} /> },
-                { id: "logs-history", label: "历史日志", icon: <Clock size={16} /> },
-                { id: "logs-error", label: "错误日志", icon: <Bug size={16} /> }
+                {id: "logs-live", label: "实时日志", icon: <Terminal size={16}/>},
+                {id: "logs-history", label: "历史日志", icon: <Clock size={16}/>},
+                {id: "logs-error", label: "错误日志", icon: <Bug size={16}/>}
             ]
         },
-        { id: "message", label: "好友与群组", icon: <MessageCircle size={20} /> },
-        { id: "console", label: "酒狐控制台", icon: <Power size={20} /> },
-        { id: "schedule", label: "调度任务", icon: <Timer size={20} />},
-        { id: "subscription", label: "订阅管理", icon: <Newspaper size={20}/>},
-        { id: "plugins", label: "插件列表", icon: <Puzzle size={20} /> },
-        { id: "store", label: "插件商店", icon: <HomeIcon size={20} /> , disabled: true },
-        { id: "config", label: "配置管理", icon: <Settings size={20} /> },
-        { id: "files", label: "文件管理", icon: <FolderOpen size={20} /> },
+        {id: "message", label: "好友与群组", icon: <MessageCircle size={20}/>},
+        {id: "console", label: "酒狐控制台", icon: <Power size={20}/>},
+        {id: "schedule", label: "调度任务", icon: <Timer size={20}/>},
+        {id: "subscription", label: "订阅管理", icon: <Newspaper size={20}/>},
+        {id: "plugins", label: "插件列表", icon: <Puzzle size={20}/>},
+        {id: "store", label: "插件商店", icon: <HomeIcon size={20}/>, disabled: true},
+        {id: "config", label: "配置管理", icon: <Settings size={20}/>},
+        {id: "files", label: "文件管理", icon: <FolderOpen size={20}/>},
     ];
 
     // 渲染内容区域
     const renderContent = () => {
         if (activeTab.startsWith("logs-")) {
             const subType = activeTab.split("-")[1] as 'live' | 'history' | 'error';
-            return <LogView subType={subType} />;
+            return <LogView subType={subType}/>;
         }
 
         switch (activeTab) {
             case "dashboard":
-                return <DashboardHome />; // 使用新组件
+                return <DashboardHome/>; // 使用新组件
             case "console":
-                return <ConsoleView />;
+                return <ConsoleView/>;
             case "schedule":
                 return <ScheduleManager/>
             case "subscription":
                 return <SubscriptionManager/>
             case "plugins":
-                return <PluginListView />;
+                return <PluginListView/>;
             case "config":
                 return <ConfigManager/>
             case "files":
-                return <FileManagerView />;
+                return <FileManagerView/>;
             case "message":
-                return <FriendsAndGroups />;
+                return <FriendsAndGroups/>;
             default:
                 return <div className="flex items-center justify-center h-full text-gray-400">该页面无法显示</div>;
         }
@@ -139,17 +141,21 @@ export default function Home() {
     const SidebarContent = () => (
         <>
             {/* Logo */}
-            <div className={`mb-6 px-4 relative transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
+            <div
+                className={`mb-6 px-4 relative transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
                 <div className="relative text-center mt-4">
-                    <h1 className="text-3xl font-black text-pink-300 transform -rotate-6 select-none" style={{textShadow: "2px 2px 0px #fff"}}>WineFox</h1>
-                    <h1 className="text-4xl font-black text-pink-400 transform rotate-3 -mt-2 ml-4 select-none" style={{textShadow: "2px 2px 0px #fff"}}>Bot</h1>
+                    <h1 className="text-3xl font-black text-pink-300 transform -rotate-6 select-none"
+                        style={{textShadow: "2px 2px 0px #fff"}}>WineFox</h1>
+                    <h1 className="text-4xl font-black text-pink-400 transform rotate-3 -mt-2 ml-4 select-none"
+                        style={{textShadow: "2px 2px 0px #fff"}}>Bot</h1>
                 </div>
             </div>
 
             {/* Logo Placeholder for Collapsed Mode */}
             {isSidebarCollapsed && (
                 <div className="mb-6 mt-4 flex justify-center">
-                    <div className="w-10 h-10 bg-pink-400 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md">
+                    <div
+                        className="w-10 h-10 bg-pink-400 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md">
                         W
                     </div>
                 </div>
@@ -166,7 +172,7 @@ export default function Home() {
                             <div key={item.id} className="w-full px-2">
                                 <div className="relative">
                                     {isActive && !item.hasSubmenu && !isSidebarCollapsed && (
-                                        <div className="absolute left-0 top-1 bottom-1 w-1 bg-pink-400 rounded-r-md" />
+                                        <div className="absolute left-0 top-1 bottom-1 w-1 bg-pink-400 rounded-r-md"/>
                                     )}
 
                                     <Button
@@ -190,19 +196,22 @@ export default function Home() {
                                                 }
                                             } else {
                                                 setActiveTab(item.id);
-                                                if (window.innerWidth < 768) setIsSidebarOpen(false);
+                                                typeof window !== "undefined" && window.innerWidth < 768 && setIsSidebarOpen(false);
                                             }
                                         }}
                                         title={isSidebarCollapsed ? item.label : undefined}
                                     >
-                                        <div className={`flex items-center w-full gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                                        <div
+                                            className={`flex items-center w-full gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
                                             <span className="flex-shrink-0">{item.icon}</span>
                                             {!isSidebarCollapsed && (
                                                 <>
-                                                    <span className="whitespace-nowrap flex-1 text-left">{item.label}</span>
+                                                    <span
+                                                        className="whitespace-nowrap flex-1 text-left">{item.label}</span>
                                                     {item.hasSubmenu && (
                                                         <span className="text-gray-400">
-                                                            {isSubmenuOpen ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
+                                                            {isSubmenuOpen ? <ChevronDown size={14}/> :
+                                                                <ChevronRight size={14}/>}
                                                         </span>
                                                     )}
                                                 </>
@@ -227,7 +236,7 @@ export default function Home() {
                                                     variant="light"
                                                     onPress={() => {
                                                         setActiveTab(sub.id);
-                                                        if (window.innerWidth < 768) setIsSidebarOpen(false);
+                                                        if (typeof window !== "undefined" && window.innerWidth < 768) setIsSidebarOpen(false);
                                                     }}
                                                 >
                                                     <div className="flex items-center gap-2">
@@ -250,7 +259,7 @@ export default function Home() {
 
     return (
         <AuthGuard>
-            <ApiSettingsModal isOpen={isSettingsOpen} onOpenChange={onSettingsOpenChange} />
+            <ApiSettingsModal isOpen={isSettingsOpen} onOpenChange={onSettingsOpenChange}/>
 
             <div className="flex w-full h-screen bg-[#fff0f5] overflow-hidden relative">
 
@@ -264,11 +273,6 @@ export default function Home() {
 
                 {/* --- 左侧侧边栏 (Responsive & Collapsible) --- */}
                 <aside
-                    style={{
-                        transform: window.innerWidth < 768
-                            ? (isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)')
-                            : 'none'
-                    }}
                     className={`
                         fixed md:relative z-[100] h-full
                         bg-white/40 border-r border-white/50 backdrop-blur-md flex flex-col py-4
@@ -332,7 +336,8 @@ export default function Home() {
                             >
                                 {isSidebarCollapsed ? (
                                     <div className="w-full flex justify-center">
-                                        <PanelLeftOpen size={20} className="text-pink-400 group-hover:scale-110 transition-transform"/>
+                                        <PanelLeftOpen size={20}
+                                                       className="text-pink-400 group-hover:scale-110 transition-transform"/>
                                     </div>
                                 ) : (
                                     <div className="flex items-center w-full gap-3">
@@ -397,7 +402,8 @@ export default function Home() {
                                     size="sm" className="border border-pink-200"/>
                             <Button size="sm" variant="light"
                                     className="text-gray-600 font-bold bg-white/50 min-w-0 px-2 md:px-3">
-                                <span className="hidden sm:inline">{currentBotInfo?.nickname}</span> <span className="text-xs">▼</span>
+                                <span className="hidden sm:inline">{currentBotInfo?.nickname}</span> <span
+                                className="text-xs">▼</span>
                             </Button>
                         </div>
                     </header>

@@ -77,7 +77,6 @@ export const useBotStore = create<BotState>((set, get) => ({
         if (availableBots.length > 0) {
             // 如果还没选，或者选的不在线了，就选第一个
             if (!currentBotId || !availableBots.includes(currentBotId)) {
-                console.log('自动选择第一个机器人:', availableBots[0]);
                 await switchBot(availableBots[0]);
             }
         } else {
