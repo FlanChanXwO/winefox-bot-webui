@@ -53,7 +53,7 @@ export const LogItem: React.FC<LogItemProps> = memo(({ log, variant = 'default' 
                 {log.logger && (
                     <>
                         <span
-                            className="text-cyan-600 opacity-80 hover:opacity-100 cursor-help max-w-[150px] sm:max-w-[300px] truncate align-bottom text-[11px] sm:text-xs font-mono"
+                            className="text-cyan-600 opacity-80 hover:opacity-100 cursor-help max-w-[500px] sm:max-w-[300px] truncate align-bottom text-[11px] sm:text-xs font-mono"
                             title={log.logger} // 鼠标悬停显示完整包名
                         >
                             {/* 修改：直接显示全名，不再截取 */}
