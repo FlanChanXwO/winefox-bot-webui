@@ -79,17 +79,18 @@ jobs:
       - name: Create Archive
         if: steps.check.outputs.should_release == 'true'
         run: |
-          # 文件名: winefox-bot-webui-v0.1.1.zip
-          FILE_NAME="winefox-bot-webui-${{ steps.check.outputs.tag_name }}.zip"
+          FILE_NAME="winefox-bot-webui-${{ steps.check.outputs.tag_name }}-static.zip"
           echo "FILE_NAME=$FILE_NAME" >> $GITHUB_ENV
           
-          if [ -d ".next/standalone" ]; then
-            cp -r public .next/standalone/public || true
-            cp -r .next/static .next/standalone/.next/static
-            cd .next/standalone
-            zip -r ../../$FILE_NAME .
+          # 检查 out 目录是否存在 (Next.js 默认导出目录)
+          if [ -d "out" ]; then
+            echo "✅ Static export directory 'out' found."
+            cd out
+            # 将 out 目录下的所有内容打包
+            zip -r ../$FILE_NAME .
           else
-            zip -r $FILE_NAME .next public package.json package-lock.json next.config.mjs next.config.js 2>/dev/null || true
+            echo "❌ Error: 'out' directory not found. Did you set output: 'export' in next.config.mjs?"
+            exit 1
           fi
 
       # --- 自动打 Tag 并发布 ---
