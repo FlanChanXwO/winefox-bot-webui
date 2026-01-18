@@ -14,7 +14,6 @@ import {
     Pencil,
     Download,
     Trash2,
-    ChevronRight,
     CornerUpLeft,
     Image as ImageIcon
 } from "lucide-react";
@@ -22,7 +21,7 @@ import {toast} from "sonner";
 import {
     createFile, deleteFile, FileItem, getFileContent, getFiles, getDownloadUrl, getViewUrl, saveFileContent
 } from "@/api/fileManager";
-
+import { TOKEN_KEY } from "@/utils/request";
 // --- 辅助函数：判断是否为图片 ---
 const isImageFile = (filename: string) => {
     return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(filename);
@@ -46,9 +45,30 @@ export default function FileManagerView() {
     const [newItemName, setNewItemName] = useState("");
     const [editingFile, setEditingFile] = useState<{ path: string; name: string } | null>(null);
     const [editorContent, setEditorContent] = useState("");
+    const [isImgLoading, setIsImgLoading] = useState(false);
     const [previewImgUrl, setPreviewImgUrl] = useState("");
     const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // 辅助函数：带鉴权的 Blob 获取
+    const fetchBlobWithAuth = async (url: string) => {
+        const token = localStorage.getItem(TOKEN_KEY);
+        const headers: HeadersInit = {};
+        if (token) {
+            headers['Authorization'] = token;
+        }
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: headers,
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.blob();
+    };
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -186,26 +206,66 @@ export default function FileManagerView() {
     };
 
     // 6. 处理行点击 (单击进入目录，单击预览图片)
-    const handleRowClick = (file: FileItem) => {
+    const handleRowClick = async (file: FileItem) => {
         if (file.type === "folder") {
             setCurrentPath(file.path);
         } else if (isImageFile(file.name)) {
-            setPreviewImgUrl(getViewUrl(file.path));
+            // 打开弹窗并显示加载状态
             onImgOpen();
+            setIsImgLoading(true);
+            setPreviewImgUrl(""); // 先清空旧图片
+
+            try {
+                // 获取原始 URL
+                const originalUrl = getViewUrl(file.path);
+
+                // 使用带鉴权的 fetch 获取图片 Blob
+                const blob = await fetchBlobWithAuth(originalUrl);
+
+                // 创建本地预览 URL
+                const objectUrl = URL.createObjectURL(blob);
+                setPreviewImgUrl(objectUrl);
+            } catch (e) {
+                console.error("预览图片失败", e);
+                toast.error("无法加载图片预览");
+                // 失败关闭弹窗
+                onImgChange();
+            } finally {
+                setIsImgLoading(false);
+            }
         } else if (file.editable) {
             openEditor(file);
         } else {
-            // 普通文件单击暂时不做操作，或者可以选中
+            // 普通文件单击暂时不做操作
         }
     };
 
     // 7. 下载
-    const handleDownload = (path: string) => {
-        const link = document.createElement('a');
-        link.href = getDownloadUrl(path);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const handleDownload = async (file: FileItem) => {
+        const toastId = toast.loading("正在准备下载...");
+        try {
+            const downloadUrl = getDownloadUrl(file.path);
+
+            // 使用带鉴权的 fetch 获取文件 Blob
+            const blob = await fetchBlobWithAuth(downloadUrl);
+
+            // 创建下载链接
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = file.name; // 强制指定文件名
+            document.body.appendChild(link);
+            link.click();
+
+            // 清理
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success("下载开始", { id: toastId });
+        } catch (e) {
+            console.error("下载失败", e);
+            toast.error("下载失败，请检查权限或网络", { id: toastId });
+        }
     };
 
     // 8. 路径回退逻辑
@@ -342,7 +402,7 @@ export default function FileManagerView() {
                                             {/* 下载按钮：仅文件可用 */}
                                             {file.type === 'file' && (
                                                 <Button isIconOnly size="sm" variant="light"
-                                                        onPress={() => handleDownload(file.path)}>
+                                                        onPress={() => handleDownload(file)}>
                                                     <Download size={16}
                                                               className="text-green-500 hover:text-green-700"/>
                                                 </Button>
@@ -418,12 +478,20 @@ export default function FileManagerView() {
                     {(onClose) => (
                         <>
                             <ModalBody className="flex justify-center items-center p-4 min-h-[300px]">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                    src={previewImgUrl}
-                                    alt="preview"
-                                    className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
-                                />
+                                {isImgLoading ? (
+                                    <Spinner size="lg" color="secondary" label="正在加载图片..." />
+                                ) : (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={previewImgUrl}
+                                        alt="preview"
+                                        className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                                        // 图片关闭时清理 URL 对象以防内存泄漏
+                                        onLoad={() => {
+                                            window.URL.revokeObjectURL(previewImgUrl);
+                                        }}
+                                    />
+                                )}
                             </ModalBody>
                         </>
                     )}

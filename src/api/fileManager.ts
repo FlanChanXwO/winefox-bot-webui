@@ -15,27 +15,27 @@ export interface FileItem {
 
 // 1. 获取列表
 export const getFiles = (path: string = "") => {
-    return request.get<Result<FileItem[]>>("/api/file/list", { params: { path } });
+    return request.get<FileItem[]>("/api/file/list", { params: { path } });
 };
 
 // 2. 新建文件/文件夹
 export const createFile = (path: string, name: string, isFolder: boolean) => {
-    return request.post<Result<string>>("/api/file/create", { path, name, isFolder });
+    return request.post<string>("/api/file/create", { path, name, isFolder });
 };
 
 // 3. 删除
 export const deleteFile = (path: string) => {
-    return request.delete<Result<string>>("/api/file/delete", { params: { path } });
+    return request.delete<string>("/api/file/delete", { params: { path } });
 };
 
 // 4. 获取文本内容
 export const getFileContent = (path: string) => {
-    return request.get<Result<{ content: string }>>("/api/file/content", { params: { path } });
+    return request.get<{ content: string }>("/api/file/content", { params: { path } });
 };
 
 // 5. 保存文本
 export const saveFileContent = (path: string, content: string) => {
-    return request.post<Result<string>>("/api/file/save", { path, content });
+    return request.post<string>("/api/file/save", { path, content });
 };
 
 // 6. 获取下载链接 (直接拼接 URL)
