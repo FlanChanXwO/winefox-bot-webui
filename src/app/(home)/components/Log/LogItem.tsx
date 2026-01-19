@@ -1,13 +1,14 @@
-import React, { memo, useState } from 'react';
-import { formatTime } from '@/utils/time';
-import { LogEntry } from '@/store/useLogStore';
+import React, {memo, useState} from 'react';
+import {formatTime} from '@/utils/time';
+import {LogEntry} from '@/store/useLogStore';
+import {Popover, PopoverTrigger, PopoverContent} from "@nextui-org/react";
 
 interface LogItemProps {
     log: LogEntry;
     variant?: 'default' | 'compact';
 }
 
-export const LogItem: React.FC<LogItemProps> = memo(({ log, variant = 'default' }) => {
+export const LogItem: React.FC<LogItemProps> = memo(({log, variant = 'default'}) => {
     const isCompact = variant === 'compact';
     // 控制堆栈信息的展开/折叠
     const [isStackExpanded, setIsStackExpanded] = useState(false);
@@ -30,12 +31,13 @@ export const LogItem: React.FC<LogItemProps> = memo(({ log, variant = 'default' 
                 </span>
 
                 {/* 2. 级别 */}
-                <span className={`font-bold px-1.5 rounded py-0.5 select-none text-[10px] min-w-[3em] text-center border ${
-                    log.level === 'ERROR' ? 'bg-red-50 text-red-600 border-red-100' :
-                        log.level === 'WARN' ? 'bg-yellow-50 text-yellow-600 border-yellow-100' :
-                            log.level === 'DEBUG' ? 'text-blue-500 border-blue-100' :
-                                'text-gray-500 border-gray-100'
-                }`}>
+                <span
+                    className={`font-bold px-1.5 rounded py-0.5 select-none text-[10px] min-w-[3em] text-center border ${
+                        log.level === 'ERROR' ? 'bg-red-50 text-red-600 border-red-100' :
+                            log.level === 'WARN' ? 'bg-yellow-50 text-yellow-600 border-yellow-100' :
+                                log.level === 'DEBUG' ? 'text-blue-500 border-blue-100' :
+                                    'text-gray-500 border-gray-100'
+                    }`}>
                     {log.level}
                 </span>
 
@@ -52,13 +54,24 @@ export const LogItem: React.FC<LogItemProps> = memo(({ log, variant = 'default' 
                 {/* 4. Logger全类名 - 青色系 */}
                 {log.logger && (
                     <>
-                        <span
-                            className="text-cyan-600 opacity-80 hover:opacity-100 cursor-help max-w-[500px] sm:max-w-[300px] truncate align-bottom text-[11px] sm:text-xs font-mono"
-                            title={log.logger} // 鼠标悬停显示完整包名
-                        >
-                            {/* 修改：直接显示全名，不再截取 */}
-                            {log.logger}
-                        </span>
+                        <Popover placement="top" showArrow backdrop="transparent">
+                            <PopoverTrigger>
+                                <span
+                                    className="text-cyan-600 opacity-80 hover:opacity-100 cursor-pointer max-w-[150px] sm:max-w-[300px] truncate align-bottom text-[11px] sm:text-xs font-mono select-none"
+                                    // 移除 title，因为 Popover 会接管显示
+                                >
+                                    {log.logger}
+                                </span>
+                            </PopoverTrigger>
+                            <PopoverContent>
+                                <div className="px-1 py-2">
+                                    <div
+                                        className="text-tiny font-mono break-all select-all text-gray-600 dark:text-gray-300">
+                                        {log.logger}
+                                    </div>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
                         {/* 分隔符，稍微淡一点 */}
                         <span className="text-gray-300 select-none hidden sm:inline">|</span>
                     </>
@@ -86,7 +99,8 @@ export const LogItem: React.FC<LogItemProps> = memo(({ log, variant = 'default' 
 
             {/* 7. 堆栈信息展示区域 */}
             {hasStack && isStackExpanded && (
-                <div className="mt-1 ml-4 sm:ml-12 p-3 bg-[#1e1e1e] rounded-md border border-gray-700 overflow-x-auto shadow-inner">
+                <div
+                    className="mt-1 ml-4 sm:ml-12 p-3 bg-[#1e1e1e] rounded-md border border-gray-700 overflow-x-auto shadow-inner">
                     <pre className="font-mono text-xs text-red-300 whitespace-pre-wrap break-all leading-5">
                         {log.stackTrace}
                     </pre>

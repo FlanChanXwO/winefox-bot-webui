@@ -282,7 +282,7 @@ export default function Home() {
                         md:translate-x-0
                     `}
                 >
-                    {/* 移动端右上角关闭按钮 (已修复嵌套问题) */}
+                    {/* 移动端右上角关闭按钮 */}
                     <div className="md:hidden absolute top-4 right-4 z-50">
                         <Button
                             isIconOnly

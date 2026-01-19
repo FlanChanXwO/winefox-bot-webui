@@ -1,7 +1,10 @@
-export default [
+module.exports = [
     {
         rules: {
-            "react/no-unescaped-entities": ["error", { "forbid": [">", "}"] }]
+            "react/no-unescaped-entities": [
+                "error",
+                { "forbid": [">", "}"] }
+            ]
         }
     }
 ];

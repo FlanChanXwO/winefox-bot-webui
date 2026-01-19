@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useEffect, useRef} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import ReactECharts from "echarts-for-react";
 import {Avatar, Card, CardBody, Chip} from "@nextui-org/react";
 import {User, Users, MessageSquare, Repeat, Server, Activity, Database} from "lucide-react";
@@ -10,6 +10,8 @@ import {useSystemStatus} from "@/hooks/useSystemStatus";
 import {useDashboardStore} from "@/hooks/useDashboardData";
 import {formatLogTime} from "@/utils/time";
 import {useBotStore} from "@/store/useBotStore";
+import {FriendAndGroupStatsResponse, getFriendAndGroupStats} from "@/api/friendAndGroup";
+import {toast} from "sonner";
 
 const getEventColor = (type: string) => {
     switch (type) {
@@ -45,22 +47,41 @@ export default function DashboardHome() {
         fetchLogs
     } = useDashboardStore();
     const {currentBotInfo,availableBots} = useBotStore(state => state);
+    // 好友和群组API
+    const [friendAndGroupStats,setFriendAndGroupStats] = useState<FriendAndGroupStatsResponse>({groupCount: 0, friendCount: 0});
 
     // 初始化加载数据
     useEffect(() => {
         connectWebSocket(); // 连接 WS
         fetchConfigs();     // 获取配置
         fetchLogs(1);       // 获取第一页日志
+        fetchFriendAndGroupStats(currentBotInfo?.botId); // 获取好友和群组统计数据
     }, []);
 
     useEffect(() => {
         fetchLogs(1)
+        fetchFriendAndGroupStats(currentBotInfo?.botId);
     }, [currentBotInfo?.botId]);
 
 // 自动滚动到底部
     useEffect(() => {
         logsEndRef.current?.scrollIntoView({behavior: "smooth"});
     }, [logs]);
+
+    const fetchFriendAndGroupStats = async (botId?: number) => {
+        if (!botId) return;
+        try {
+            const res = await getFriendAndGroupStats(botId);
+            if (!res.success) {
+                toast.error(res.message);
+                return;
+            }
+            setFriendAndGroupStats(res.data);
+        } catch (error) {
+            console.error("获取好友和群组统计数据失败:", error);
+            toast.error("获取好友和群组统计数据失败");
+        }
+    }
 
 
     const getBarOption = (title: string, data: number[]) => ({
@@ -128,11 +149,11 @@ export default function DashboardHome() {
                             <div className="grid grid-cols-2 gap-3 w-full">
                                 <div
                                     className="bg-pink-50 text-pink-500 py-2 rounded-xl flex justify-center items-center gap-2 font-bold text-sm">
-                                    <User size={16} fill="currentColor"/> 好友 0
+                                    <User size={16} fill="currentColor"/> 好友 {friendAndGroupStats.friendCount}
                                 </div>
                                 <div
                                     className="bg-emerald-50 text-emerald-500 py-2 rounded-xl flex justify-center items-center gap-2 font-bold text-sm">
-                                    <Users size={16} fill="currentColor"/> 群组 2
+                                    <Users size={16} fill="currentColor"/> 群组 {friendAndGroupStats.groupCount}
                                 </div>
                             </div>
 
