@@ -6,7 +6,7 @@ import {Lock, User, LogIn, Eye, EyeOff, Globe} from 'lucide-react';
 import {motion} from 'framer-motion';
 import ApiSettingsModal from "@/components/ApiSettingsModal";
 import { useRouter } from 'next/navigation';
-import { login } from '@/utils/auth';
+import { login } from '@/api/auth';
 import {toast} from 'sonner';
 
 export default function Login() {

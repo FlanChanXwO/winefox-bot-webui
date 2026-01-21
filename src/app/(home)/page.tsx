@@ -3,7 +3,11 @@ import {useEffect, useState} from "react";
 import {
     Button,
     Avatar,
-    ScrollShadow, useDisclosure
+    ScrollShadow, useDisclosure,
+    Dropdown,
+    DropdownTrigger,
+    DropdownMenu,
+    DropdownItem
 } from "@nextui-org/react";
 import {
     LayoutDashboard,
@@ -12,7 +16,7 @@ import {
     Power,
     Timer,
     Newspaper,
-    Settings,
+    Bot,
     Home as HomeIcon,
     Terminal,
     MessageCircle,
@@ -21,25 +25,25 @@ import {
     RefreshCw,
     Clock,
     Bug,
-    Menu,        // 新增：菜单图标
-    X,           // 新增：关闭图标
-    PanelLeftClose, // 新增：侧边栏折叠图标
-    PanelLeftOpen, Globe   // 新增：侧边栏展开图标
+    Menu,
+    X,
+    PanelLeftClose,
+    PanelLeftOpen, Globe
 } from "lucide-react";
 
 // 引入拆分后的组件
-import ConsoleView from "./components/ConsoleView";
-import PluginListView from "./components/PluginListView";
-import FileManagerView from "./components/FileManagerView";
-import LogView from "./components/Log/HistoryLogViewer";
+import Console from "./components/Console";
+import PluginList from "./components/PluginList";
+import FileManager from "./components/FileManager";
+import LogView from "./components/Log";
 import FriendsAndGroups from "./components/FriendsAndGroups";
 import AuthGuard from "./components/AuthGuard";
 import DashboardHome from "./components/DashboardHome";
 import ScheduleManager from "@/app/(home)/components/ScheduleManager";
 import SubscriptionManager from "@/app/(home)/components/SubscriptionManager";
 import ApiSettingsModal from "@/components/ApiSettingsModal";
-import ConfigManager from "@/app/(home)/components/ConfigManager";
-import {useBotStore} from "@/store/useBotStore"; // 引入刚才新建的组件
+import {useBotStore} from "@/store/useBotStore";
+import About from "@/app/(home)/components/About"; // 引入刚才新建的组件
 
 // --- 主页面组件 ---
 export default function Home() {
@@ -51,7 +55,13 @@ export default function Home() {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // PC端折叠
 
     const {isOpen: isSettingsOpen, onOpen: onSettingsOpen, onOpenChange: onSettingsOpenChange} = useDisclosure(); // API地址设置
-    const {initBots, currentBotInfo} = useBotStore(state => state);
+    const {
+        initBots,
+        currentBotInfo,
+        availableBots,
+        switchBot,
+        currentBotId
+    } = useBotStore(state => state);
 
 
     useEffect(() => {
@@ -97,14 +107,14 @@ export default function Home() {
                 {id: "logs-error", label: "错误日志", icon: <Bug size={16}/>}
             ]
         },
-        {id: "message", label: "好友与群组", icon: <MessageCircle size={20}/>},
+        {id: "message", label: "好友与群组", icon: <MessageCircle size={20}/> ,disabled: true},
         {id: "console", label: "酒狐控制台", icon: <Power size={20}/>},
         {id: "schedule", label: "调度任务", icon: <Timer size={20}/>},
-        {id: "subscription", label: "订阅管理", icon: <Newspaper size={20}/>},
+        {id: "subscription", label: "订阅管理", icon: <Newspaper size={20}/> ,disabled: true},
         {id: "plugins", label: "插件列表", icon: <Puzzle size={20}/>},
         {id: "store", label: "插件商店", icon: <HomeIcon size={20}/>, disabled: true},
-        {id: "config", label: "配置管理", icon: <Settings size={20}/>},
         {id: "files", label: "文件管理", icon: <FolderOpen size={20}/>},
+        {id: "about", label: "关于酒狐", hidden: true}
     ];
 
     // 渲染内容区域
@@ -116,21 +126,21 @@ export default function Home() {
 
         switch (activeTab) {
             case "dashboard":
-                return <DashboardHome/>; // 使用新组件
+                return <DashboardHome/>;
             case "console":
-                return <ConsoleView/>;
-            case "schedule":
-                return <ScheduleManager/>
-            case "subscription":
-                return <SubscriptionManager/>
-            case "plugins":
-                return <PluginListView/>;
-            case "config":
-                return <ConfigManager/>
-            case "files":
-                return <FileManagerView/>;
+                return <Console/>;
             case "message":
                 return <FriendsAndGroups/>;
+            case "subscription":
+                return <SubscriptionManager/>
+            case "schedule":
+                return <ScheduleManager/>
+            case "plugins":
+                return <PluginList/>;
+            case "files":
+                return <FileManager/>;
+            case "about":
+                return <About/>
             default:
                 return <div className="flex items-center justify-center h-full text-gray-400">该页面无法显示</div>;
         }
@@ -167,6 +177,10 @@ export default function Home() {
                     {menuItems.map((item) => {
                         const isActive = activeTab === item.id || (item.hasSubmenu && activeTab.startsWith(item.id + "-"));
                         const isSubmenuOpen = item.id === "logs" && logsOpen;
+
+                        if (item.hidden) { // 隐藏项不渲染
+                            return null;
+                        }
 
                         return (
                             <div key={item.id} className="w-full px-2">
@@ -315,8 +329,9 @@ export default function Home() {
 
                         {/* 设置/关于按钮 */}
                         <div
+                            onClick={() => setActiveTab("about")}
                             className={`flex items-center gap-3 px-3 py-2 cursor-pointer text-gray-400 hover:text-pink-400 transition-colors rounded-lg hover:bg-white/30 ${isSidebarCollapsed ? 'justify-center w-10 h-10 px-0' : ''}`}>
-                            <Settings size={20}/>
+                            <Bot size={20}/>
                             {!isSidebarCollapsed && <span className="font-bold">关于酒狐</span>}
                         </div>
 
@@ -393,19 +408,64 @@ export default function Home() {
                             </Button>
 
                             <Button isIconOnly size="sm"
-                                    className="bg-pink-100 text-pink-400 rounded-full hidden sm:flex">
+                                    className="bg-pink-100 text-pink-400 rounded-full hidden sm:flex"
+                                    onPress={() => initBots()}
+                            >
                                 <RefreshCw size={14}/>
                             </Button>
-                            <span className="text-sm font-bold text-gray-600 hidden sm:block">切换账号</span>
-                            <Avatar src={currentBotInfo?.avatarUrl}
-                                    classNames={{img: "opacity-100"}} imgProps={{referrerPolicy: "no-referrer"}}
-                                    size="sm" className="border border-pink-200"/>
-                            <Button size="sm" variant="light"
-                                    className="text-gray-600 font-bold bg-white/50 min-w-0 px-2 md:px-3">
-                                <span className="hidden sm:inline">{currentBotInfo?.nickname}</span> <span
-                                className="text-xs">▼</span>
-                            </Button>
+
+                            {/* --- 修改开始：账号切换下拉菜单 --- */}
+                            <Dropdown placement="bottom-end">
+                                <DropdownTrigger>
+                                    <div className="flex items-center gap-2 cursor-pointer p-1 rounded-xl hover:bg-gray-100 transition-colors">
+                                        <span className="text-sm font-bold text-gray-600 hidden sm:block ml-1">切换账号</span>
+
+                                        <Avatar
+                                            src={currentBotInfo?.avatarUrl}
+                                            classNames={{img: "opacity-100"}}
+                                            imgProps={{referrerPolicy: "no-referrer"}}
+                                            size="sm"
+                                            className="border border-pink-200"
+                                        />
+
+                                        <Button size="sm" variant="light"
+                                                className="text-gray-600 font-bold bg-transparent min-w-0 px-1 md:px-2 data-[hover=true]:bg-transparent">
+                                            <span className="hidden sm:inline">{currentBotInfo?.nickname || `Bot ${currentBotId || ''}`}</span>
+                                            <span className="text-xs">▼</span>
+                                        </Button>
+                                    </div>
+                                </DropdownTrigger>
+
+                                <DropdownMenu
+                                    aria-label="Bot Actions"
+                                    variant="flat"
+                                    disallowEmptySelection
+                                    selectionMode="single"
+                                    selectedKeys={currentBotId ? new Set([String(currentBotId)]) : new Set()}
+                                    onAction={(key) => switchBot(Number(key))}
+                                >
+                                    {/* 遍历可用机器人列表 */}
+                                    {availableBots.length > 0 ? (
+                                        availableBots.map((botId) => (
+                                            <DropdownItem key={botId} textValue={`Bot ${botId}`}>
+                                                <div className="flex flex-col">
+                                                    <span className="text-small font-bold">机器人 ID: {botId}</span>
+                                                    {String(botId) === String(currentBotId) && (
+                                                        <span className="text-tiny text-pink-500">当前在线</span>
+                                                    )}
+                                                </div>
+                                            </DropdownItem>
+                                        ))
+                                    ) : (
+                                        <DropdownItem key="no-bots" isReadOnly>
+                                            暂无在线机器人
+                                        </DropdownItem>
+                                    )}
+                                </DropdownMenu>
+                            </Dropdown>
+                            {/* --- 修改结束 --- */}
                         </div>
+
                     </header>
 
                     {/* 主视图渲染容器 */}

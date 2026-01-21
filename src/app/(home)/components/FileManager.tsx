@@ -27,7 +27,7 @@ const isImageFile = (filename: string) => {
     return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(filename);
 };
 
-export default function FileManagerView() {
+export default function FileManager() {
     // 状态管理
     const [currentPath, setCurrentPath] = useState<string>(""); // 当前路径，空字符串表示根目录
     const [inputPath, setInputPath] = useState<string>(""); // 输入框中的路径

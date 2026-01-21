@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, {useEffect, useState} from "react";
 import {
     Card, CardBody, Avatar, Chip, Button, CircularProgress, Select, SelectItem
 } from "@nextui-org/react";
@@ -10,8 +10,13 @@ import {
     AreaChart, Area
 } from "recharts";
 import {useBotStore} from "@/store/useBotStore";
+import {useDashboardStore} from "@/hooks/useDashboardData";
+import {FriendAndGroupStatsResponse, getFriendAndGroupStats} from "@/api/friendAndGroup";
+import {getConsoleStats} from "@/api/console"; // [新增] 引入API
+import {formatLogTime} from "@/utils/time";
+import {getValueFontSize} from "@/utils/font";
 
-// --- 模拟数据 ---
+// --- 模拟数据 (图表部分暂时保持模拟，等待后续后端接口) ---
 
 // 1. 活跃群组
 const activityData = [
@@ -30,23 +35,10 @@ const pluginStatsData = [
     { name: '图片超分', count: 5 },
 ];
 
-// 3. 消息/调用趋势 (新补充的折线图数据)
-const trendData = [
-    { date: '04-17', msg: 1, call: 0 },
-    { date: '04-20', msg: 5, call: 1 },
-    { date: '04-23', msg: 2, call: 0 },
-    { date: '04-26', msg: 3, call: 0 },
-    { date: '04-29', msg: 40, call: 25 },
-    { date: '05-02', msg: 8, call: 2 },
-    { date: '05-05', msg: 2, call: 0 },
-    { date: '05-08', msg: 15, call: 8 },
-    { date: '05-11', msg: 38, call: 12 },
-    { date: '05-14', msg: 5, call: 1 },
-];
+// [修改] 删除旧的 trendData 静态数据，改用 State 管理
 
 // --- 辅助组件 ---
-
-// 时间筛选器组件 (粉色药丸风格)
+// ... (保持 TimeFilter 和 RingStatCard 不变) ...
 const TimeFilter = ({ active = '年' }: { active?: string }) => {
     const filters = ['全部', '日', '周', '月', '年'];
     return (
@@ -67,7 +59,6 @@ const TimeFilter = ({ active = '年' }: { active?: string }) => {
     );
 };
 
-// 环形数据展示组件
 const RingStatCard = ({ title, subTitle, color, data }: { title: React.ReactNode, subTitle: string, color: string, data: any[] }) => (
     <Card className="shadow-sm border-none bg-white">
         <CardBody className="p-6">
@@ -76,50 +67,111 @@ const RingStatCard = ({ title, subTitle, color, data }: { title: React.ReactNode
                 <span className="text-xs text-gray-400 font-normal ml-2 hidden sm:inline-block">{subTitle}</span>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                {data.map((item, idx) => (
-                    <div key={idx} className="flex flex-col items-center gap-3 relative">
-                        {/* 环形进度条 */}
-                        <div className="relative flex items-center justify-center">
-                            <CircularProgress
-                                classNames={{
-                                    svg: "w-20 h-20 drop-shadow-sm",
-                                    indicator: item.color, // 使用传入的 tailwind 类名
-                                    track: "stroke-gray-100",
-                                }}
-                                value={item.val > 0 ? 75 : 0} // 模拟进度，有值就显示一部分
-                                strokeWidth={3}
-                                aria-label={item.label}
-                            />
-                            <span className={`absolute text-lg font-bold ${color.replace('text-', 'text-opacity-80 text-')}`}>
-                                {item.val}
-                            </span>
+                {data.map((item, idx) => {
+                    const fontSizeClass = getValueFontSize(item.val);
+
+                    return (
+                        <div key={idx} className="flex flex-col items-center gap-3 relative">
+                            {/* 环形进度条 */}
+                            <div className="relative flex items-center justify-center">
+                                <CircularProgress
+                                    classNames={{
+                                        svg: "w-20 h-20 drop-shadow-sm",
+                                        indicator: item.color,
+                                        track: "stroke-gray-100",
+                                    }}
+                                    value={item.val > 0 ? 75 : 0}
+                                    strokeWidth={3}
+                                    aria-label={item.label}
+                                />
+                                <span
+                                    className={`absolute font-bold ${fontSizeClass} ${color.replace('text-', 'text-opacity-90 text-')} transition-all duration-300`}
+                                >
+                                        {item.val}
+                                    </span>
+                            </div>
+                            <span className="text-gray-400 text-xs font-medium">{item.label}</span>
                         </div>
-                        <span className="text-gray-400 text-xs font-medium">{item.label}</span>
-                    </div>
-                ))}
+                    )
+                })}
             </div>
         </CardBody>
     </Card>
 );
 
 
-export default function ConsoleView() {
+export default function Console() {
+    // 3. 获取 Store 数据
     const currentBotInfo = useBotStore(state => state.currentBotInfo);
+    const {
+        summary,
+        fetchSummary,
+        messageStats,
+        fetchMessageStats
+    } = useDashboardStore();
+
+    // 4. 本地状态
+    const [friendAndGroupStats, setFriendAndGroupStats] = useState<FriendAndGroupStatsResponse>({groupCount: 0, friendCount: 0});
+    // [新增] 折线图数据状态
+    const [trendChartData, setTrendChartData] = useState<any[]>([]);
+
+    // 5. 数据获取副作用
+    useEffect(() => {
+        if (currentBotInfo?.botId) {
+            fetchSummary();
+            fetchMessageStats();
+            fetchFriendAndGroupStats(currentBotInfo.botId);
+            fetchTrendData(); // [新增] 调用获取折线图数据
+        }
+    }, [currentBotInfo?.botId]);
+
+    const fetchFriendAndGroupStats = async (botId: number) => {
+        try {
+            const res = await getFriendAndGroupStats(botId);
+            if (res.success) {
+                setFriendAndGroupStats(res.data || {groupCount: 0, friendCount: 0});
+            } else {
+                console.warn("获取统计数据失败:", res.message);
+            }
+        } catch (error) {
+            console.error("获取好友和群组统计数据失败:", error);
+        }
+    }
+
+    // [新增] 获取并转换折线图数据
+    const fetchTrendData = async () => {
+        try {
+            const res = await getConsoleStats();
+            if (res.success && res.data?.trend) {
+                const { dates, msgCounts, callCounts } = res.data.trend;
+
+                // 数据转换：将后端的三个平行数组转换为对象数组
+                // 假设 dates, msgCounts, callCounts 长度一致
+                const chartData = dates.map((date, index) => ({
+                    date: date,
+                    msg: msgCounts[index] || 0,
+                    call: callCounts[index] || 0
+                }));
+
+                setTrendChartData(chartData);
+            }
+        } catch (error) {
+            console.error("获取折线图数据失败:", error);
+        }
+    };
+
+    // 格式化连接时间
+    const formattedConnectDate = summary.connectionDate
+        ? formatLogTime(summary.connectionDate).dateStr + " " + formatLogTime(summary.connectionDate).timeStr
+        : "未连接";
 
     return (
         <div className="h-full overflow-y-auto bg-transparent p-4 lg:p-6 custom-scrollbar">
-            {/*
-               布局策略：
-               使用 12 列网格。
-               大屏下：左侧(3) - 中间(6) - 右侧(3)
-               中屏下：左侧(4) - 右侧(8)
-               小屏下：单列堆叠
-            */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-6">
 
-                {/* === 第一列：用户信息与控制 (col-span-3) === */}
+                {/* ... 第一列代码保持不变 ... */}
                 <div className="lg:col-span-3 flex flex-col gap-6">
-                    {/* 用户卡片 */}
+                    {/* ... 用户卡片 & 插件管理卡片 ... */}
                     <Card className="shadow-sm border-none bg-white min-h-[300px]">
                         <CardBody className="flex flex-col items-center justify-center py-10 gap-5">
                             <div className="relative">
@@ -130,13 +182,15 @@ export default function ConsoleView() {
 
                             </div>
                             <div className="text-center space-y-2">
-                                <h2 className="text-2xl font-bold text-pink-500 tracking-wide">{currentBotInfo?.nickname}</h2>
-                                <Chip className="bg-pink-400 text-white font-bold border border-pink-300 shadow-sm" size="sm">ID: {currentBotInfo?.botId}</Chip>
+                                <h2 className="text-2xl font-bold text-pink-500 tracking-wide">{currentBotInfo?.nickname || "我是谁？"}</h2>
+                                <Chip className="bg-pink-400 text-white font-bold border border-pink-300 shadow-sm" size="sm">ID: {currentBotInfo?.botId || "114514 "}</Chip>
                             </div>
 
                             <div className="flex justify-around w-full mt-6 px-2">
                                 <div className="text-center group cursor-pointer">
-                                    <p className="text-xl font-bold text-blue-400 group-hover:scale-110 transition-transform">0</p>
+                                    <p className="text-xl font-bold text-blue-400 group-hover:scale-110 transition-transform">
+                                        {friendAndGroupStats.friendCount}
+                                    </p>
                                     <p className="text-xs text-gray-400 mt-1">好友数量</p>
                                 </div>
                                 <div className="text-center group cursor-pointer">
@@ -146,17 +200,18 @@ export default function ConsoleView() {
                                     <p className="text-xs text-gray-400">全局开关</p>
                                 </div>
                                 <div className="text-center group cursor-pointer">
-                                    <p className="text-xl font-bold text-green-500 group-hover:scale-110 transition-transform">2</p>
+                                    <p className="text-xl font-bold text-green-500 group-hover:scale-110 transition-transform">
+                                        {friendAndGroupStats.groupCount}
+                                    </p>
                                     <p className="text-xs text-gray-400 mt-1">群组数量</p>
                                 </div>
                             </div>
                         </CardBody>
                     </Card>
 
-                    {/* Bot插件管理卡片 */}
                     <Card className="shadow-sm border-none bg-white flex-1">
                         <CardBody className="p-6">
-                            <h3 className="text-md font-bold text-pink-500 flex items-center gap-2 mb-6">
+                            <h3 className="text-md font-bold text-pink-500 flex items-center gap-2 mb-6 line-through">
                                 <Puzzle size={18} /> Bot插件管理
                             </h3>
 
@@ -199,24 +254,24 @@ export default function ConsoleView() {
                     </Card>
                 </div>
 
+
                 {/* === 第二列：核心数据环形图与折线图 (col-span-6) === */}
                 <div className="lg:col-span-6 flex flex-col gap-6">
 
-                    {/* 1. 消息接收环形图 */}
+                    {/* ... 两个 RingStatCard 保持不变 ... */}
                     <RingStatCard
                         title={<>(●'◡'●)✿ 消息接收</>}
                         subTitle="勇者结识伙伴，收到的问候，口才+1"
                         color="text-pink-500"
                         data={[
-                            { val: 806, label: "总数", color: "stroke-orange-500" },
-                            { val: 0, label: "一日内", color: "stroke-gray-300" },
-                            { val: 38, label: "一周内", color: "stroke-purple-400" },
-                            { val: 120, label: "一月内", color: "stroke-blue-400" },
-                            { val: 806, label: "一年内", color: "stroke-green-500" },
+                            { val: messageStats.total, label: "总数", color: "stroke-orange-500" },
+                            { val: messageStats.oneDay, label: "一日内", color: "stroke-gray-300" },
+                            { val: messageStats.oneWeek, label: "一周内", color: "stroke-purple-400" },
+                            { val: messageStats.oneMonth, label: "一月内", color: "stroke-blue-400" },
+                            { val: messageStats.oneYear, label: "一年内", color: "stroke-green-500" },
                         ]}
                     />
 
-                    {/* 2. 功能调用环形图 (复刻缺失部分) */}
                     <RingStatCard
                         title={<>(/●ヮ●)/ *:･ﾟ✧ 功能调用</>}
                         subTitle="勇者磨砺自身，辛勤的汗水，力量+1"
@@ -230,7 +285,7 @@ export default function ConsoleView() {
                         ]}
                     />
 
-                    {/* 3. 消息/调用统计折线图 (复刻缺失部分) */}
+                    {/* 3. 消息/调用统计折线图 */}
                     <Card className="shadow-sm border-none bg-pink-50/30">
                         <CardBody className="p-5">
                             <div className="flex justify-between items-start mb-4">
@@ -254,7 +309,8 @@ export default function ConsoleView() {
 
                             <div className="h-[200px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    {/* [修改] data 属性改为使用 trendChartData */}
+                                    <AreaChart data={trendChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="colorMsg" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="5%" stopColor="#ec4899" stopOpacity={0.2}/>
@@ -281,30 +337,27 @@ export default function ConsoleView() {
                     </Card>
                 </div>
 
-                {/* === 第三列：统计列表与柱状图 (col-span-3) === */}
+                {/* === 第三列 ... 代码保持不变 ... === */}
                 <div className="lg:col-span-3 flex flex-col gap-6">
-
-                    {/* 右上角纯文本统计 (仿截图) */}
                     <Card className="shadow-sm border-none bg-pink-50/50">
                         <CardBody className="p-5 space-y-4">
                             <div className="flex justify-between items-center text-sm">
                                 <span className="font-bold text-pink-500">累计登录</span>
-                                <span className="font-bold text-pink-400 font-mono">397</span>
+                                <span className="font-bold text-pink-400 font-mono">{summary.totalLoginCount}</span>
                             </div>
                             <div className="h-px bg-pink-100/50 w-full border-t border-dashed border-pink-200"></div>
                             <div className="flex justify-between items-center text-sm">
                                 <span className="font-bold text-pink-500">连接时长</span>
-                                <span className="font-bold text-pink-400 font-mono">01:04:24</span>
+                                <span className="font-bold text-pink-400 font-mono">{summary.connectionDuration}</span>
                             </div>
                             <div className="h-px bg-pink-100/50 w-full border-t border-dashed border-pink-200"></div>
                             <div className="flex justify-between items-center text-sm">
                                 <span className="font-bold text-pink-500">连接日期</span>
-                                <span className="font-bold text-pink-400 font-mono text-xs">2025-05-16 10:47:32</span>
+                                <span className="font-bold text-pink-400 font-mono text-xs">{formattedConnectDate}</span>
                             </div>
                         </CardBody>
                     </Card>
 
-                    {/* 活跃群组 */}
                     <Card className="shadow-sm border-none bg-white flex-1 min-h-[220px]">
                         <CardBody className="p-4">
                             <div className="flex flex-wrap justify-between items-start mb-2 gap-2">
@@ -325,7 +378,6 @@ export default function ConsoleView() {
                         </CardBody>
                     </Card>
 
-                    {/* 热门插件 */}
                     <Card className="shadow-sm border-none bg-white flex-1 min-h-[220px]">
                         <CardBody className="p-4">
                             <div className="flex flex-wrap justify-between items-start mb-2 gap-2">
@@ -345,7 +397,6 @@ export default function ConsoleView() {
                             </div>
                         </CardBody>
                     </Card>
-
                 </div>
             </div>
         </div>

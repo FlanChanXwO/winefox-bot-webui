@@ -35,7 +35,7 @@ const getEventLabel = (type: string) => {
 
 export default function DashboardHome() {
     const {logs, connectWebSocket} = useLogStore();
-    const logsEndRef = useRef<HTMLDivElement>(null);
+    const logsContainerRef = useRef<HTMLDivElement>(null);
     // 使用 Hook 获取实时数据，自动轮询
     const {status} = useSystemStatus();
     const {
@@ -43,8 +43,10 @@ export default function DashboardHome() {
         logs: dbLogs,
         logPage,
         isLoadingLogs,
+        messageStats,
         fetchConfigs,
-        fetchLogs
+        fetchLogs,
+        fetchMessageStats
     } = useDashboardStore();
     const {currentBotInfo,availableBots} = useBotStore(state => state);
     // 好友和群组API
@@ -55,17 +57,24 @@ export default function DashboardHome() {
         connectWebSocket(); // 连接 WS
         fetchConfigs();     // 获取配置
         fetchLogs(1);       // 获取第一页日志
+        fetchMessageStats(); // 获取消息统计
         fetchFriendAndGroupStats(currentBotInfo?.botId); // 获取好友和群组统计数据
     }, []);
 
     useEffect(() => {
         fetchLogs(1)
+        fetchMessageStats();
         fetchFriendAndGroupStats(currentBotInfo?.botId);
     }, [currentBotInfo?.botId]);
 
 // 自动滚动到底部
     useEffect(() => {
-        logsEndRef.current?.scrollIntoView({behavior: "smooth"});
+        if (logsContainerRef.current) {
+            logsContainerRef.current.scrollTo({
+                top: logsContainerRef.current.scrollHeight,
+                behavior: "smooth"
+            });
+        }
     }, [logs]);
 
     const fetchFriendAndGroupStats = async (botId?: number) => {
@@ -76,7 +85,7 @@ export default function DashboardHome() {
                 toast.error(res.message);
                 return;
             }
-            setFriendAndGroupStats(res.data);
+            setFriendAndGroupStats(res.data || {groupCount: 0, friendCount: 0});
         } catch (error) {
             console.error("获取好友和群组统计数据失败:", error);
             toast.error("获取好友和群组统计数据失败");
@@ -141,8 +150,8 @@ export default function DashboardHome() {
                                         className="w-20 h-20 text-large border-2 border-pink-200" isBordered
                                         imgProps={{referrerPolicy: "no-referrer"}}/>
                                 <div className="flex flex-col">
-                                    <span className="text-xl font-black text-gray-700">| {currentBotInfo?.nickname}</span>
-                                    <span className="text-xs text-pink-400 font-bold mt-1">ID: {currentBotInfo?.botId}</span>
+                                    <span className="text-xl font-black text-gray-700">| {currentBotInfo?.nickname || "我是谁？"}</span>
+                                    <span className="text-xs text-pink-400 font-bold mt-1">ID: {currentBotInfo?.botId || "114514"}</span>
                                 </div>
                             </div>
 
@@ -158,13 +167,15 @@ export default function DashboardHome() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 w-full mt-2">
-                                <div className="flex flex-col items-center bg-gray-50 p-3 rounded-xl">
-                                    <span className="text-xs text-gray-400">今日调用</span>
-                                    <Repeat className="text-pink-300 mb-1" size={20}/>
+                                <div className="flex flex-row justify-center items-center bg-gray-50 p-3 rounded-xl">
+                                    <Repeat className="text-pink-300 mb-0.5" size={20}/>
+                                    <span className="text-xs text-gray-400 ml-1">今日调用</span>
+                                    <span className="text-pink-400 font-bold ml-1 mb-0.5">{0}</span>
                                 </div>
-                                <div className="flex flex-col items-center bg-gray-50 p-3 rounded-xl">
-                                    <span className="text-xs text-gray-400">今日消息</span>
-                                    <MessageSquare className="text-pink-300 mb-1" size={20}/>
+                                <div className="flex flex-row justify-center items-center bg-gray-50 p-3 rounded-xl">
+                                    <MessageSquare className="text-pink-300 mb-0.5" size={20}/>
+                                    <span className="text-xs text-gray-400 ml-1">今日消息</span>
+                                    <span className="text-pink-400 font-bold ml-1 mb-0.5">{messageStats.today}</span>
                                 </div>
                             </div>
                         </CardBody>
@@ -275,10 +286,26 @@ export default function DashboardHome() {
                     {/* 统计数据 Grid */}
                     <div className="grid grid-cols-4 gap-3">
                         {[
-                            {label: "消息总数", val: "5060", color: "text-pink-400"},
-                            {label: "今日消息", val: "0", color: "text-gray-400"},
-                            {label: "调用总数", val: "2196", color: "text-pink-400"},
-                            {label: "今日调用", val: "0", color: "text-gray-400"},
+                            {
+                                label: "消息总数",
+                                val: messageStats.total.toString(), // 对接真实数据
+                                color: "text-pink-400"
+                            },
+                            {
+                                label: "今日消息",
+                                val: messageStats.today.toString(), // 对接真实数据
+                                color: "text-gray-400"
+                            },
+                            {
+                                label: "调用总数",
+                                val: "0", // 暂时保持硬编码 (待后续接口)
+                                color: "text-pink-400"
+                            },
+                            {
+                                label: "今日调用",
+                                val: "0", // 暂时保持硬编码 (待后续接口)
+                                color: "text-gray-400"
+                            },
                         ].map((item, idx) => (
                             <Card key={idx} className="shadow-sm border-none bg-white">
                                 <CardBody className="flex flex-col items-center justify-center py-4">
@@ -290,10 +317,10 @@ export default function DashboardHome() {
                     </div>
 
                     {/* 查看更多 Bar */}
-                    <div
-                        className="w-full bg-white py-3 rounded-xl flex justify-center items-center text-pink-400 text-sm font-bold cursor-pointer hover:bg-pink-50 transition-colors shadow-sm">
-                        (๑•̀ㅂ•́)و✧ 查看更多... &gt;
-                    </div>
+                    {/*<div*/}
+                    {/*    className="w-full bg-white py-3 rounded-xl flex justify-center items-center text-pink-400 text-sm font-bold cursor-pointer hover:bg-pink-50 transition-colors shadow-sm">*/}
+                    {/*    (๑•̀ㅂ•́)و✧ 查看更多... &gt;*/}
+                    {/*</div>*/}
 
                     {/* 后台日志 */}
                     <Card className="shadow-sm border-none h-[400px] rounded-xl">
@@ -307,7 +334,7 @@ export default function DashboardHome() {
                             </div>
 
                             {/* 日志容器 */}
-                            <div className="flex-1 overflow-y-auto space-y-1.5 pr-2 custom-scrollbar scroll-smooth">
+                            <div ref={logsContainerRef}  className="flex-1 overflow-y-auto space-y-1.5 pr-2 custom-scrollbar scroll-smooth">
                                 {/* 注入自定义滚动条样式，只在这个组件内生效 */}
                                 <style jsx>{`
                                     .custom-scrollbar::-webkit-scrollbar {
@@ -348,7 +375,6 @@ export default function DashboardHome() {
                                         {logs.slice(-50).map((log, i) => (
                                             <LogItem key={i} log={log} variant="compact"/>
                                         ))}
-                                        <div ref={logsEndRef}/>
                                     </>
                                 )}
                             </div>

@@ -56,7 +56,7 @@ export const useBotStore = create<BotState>((set, get) => ({
                 currentBotInfo: info,
                 isLoading: false
             });
-            // toast.success(`已切换至: ${info.nickname}`);
+            toast.success(`已切换至: ${info?.nickname}`);
         } catch (error) {
             console.error(`获取机器人 ${botId} 信息失败`, error);
             toast.error("获取机器人信息失败");
