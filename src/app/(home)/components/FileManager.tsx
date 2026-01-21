@@ -22,6 +22,7 @@ import {
     createFile, deleteFile, FileItem, getFileContent, getFiles, getDownloadUrl, getViewUrl, saveFileContent
 } from "@/api/fileManager";
 import { TOKEN_KEY } from "@/utils/request";
+import {useModalBackHandler} from "@/hooks/useModalBackHandler";
 // --- 辅助函数：判断是否为图片 ---
 const isImageFile = (filename: string) => {
     return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(filename);
@@ -37,7 +38,7 @@ export default function FileManager() {
     // 模态框控制
     const {isOpen: isCreateOpen, onOpen: onCreateOpen, onOpenChange: onCreateChange} = useDisclosure();
     const {isOpen: isEditOpen, onOpen: onEditOpen, onOpenChange: onEditChange} = useDisclosure();
-    const {isOpen: isImgOpen, onOpen: onImgOpen, onOpenChange: onImgChange} = useDisclosure();
+    const {isOpen: isImgOpen, onOpen: onImgOpen, onClose: onImgClose, onOpenChange: onImgChange} = useDisclosure();
     const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onOpenChange: onDeleteChange } = useDisclosure();
 
     // 临时状态
@@ -49,6 +50,45 @@ export default function FileManager() {
     const [previewImgUrl, setPreviewImgUrl] = useState("");
     const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // 引用
+    const isBackRef = useRef(false);
+
+    // 监听后退键逻辑
+    useEffect(() => {
+        if (isImgOpen) {
+            // 1. 打开 Modal 时，往浏览器历史推入一个状态
+            window.history.pushState({ imgModal: true }, '', window.location.href);
+
+            const handlePopState = () => {
+                // 2. 监听到后退事件（手机后退键或浏览器后退按钮）
+                isBackRef.current = true; // 标记：这是由后退键触发的
+                onImgClose();             // 关闭弹窗
+            };
+
+            window.addEventListener('popstate', handlePopState);
+
+            return () => {
+                window.removeEventListener('popstate', handlePopState);
+                // 3. 关闭 Modal 时，如果不是通过后退键关闭的（比如点了关闭按钮），
+                // 我们需要手动 history.back() 把第1步推入的那个状态抵消掉
+                if (!isBackRef.current) {
+                    window.history.back();
+                }
+                isBackRef.current = false; // 重置标记
+            };
+        }
+    }, [isImgOpen, onImgClose]);
+
+    // Modification 3: 安全的图片 URL 清理逻辑
+    // 当 previewImgUrl 改变或者组件卸载时，释放旧的 URL 内存
+    useEffect(() => {
+        return () => {
+            if (previewImgUrl) {
+                window.URL.revokeObjectURL(previewImgUrl);
+            }
+        };
+    }, [previewImgUrl]);
 
     // 辅助函数：带鉴权的 Blob 获取
     const fetchBlobWithAuth = async (url: string) => {
@@ -475,7 +515,7 @@ export default function FileManager() {
             {/* 3. 图片预览弹窗 */}
             <Modal isOpen={isImgOpen} onOpenChange={onImgChange} size="2xl">
                 <ModalContent>
-                    {(onClose) => (
+                    {() => (
                         <>
                             <ModalBody className="flex justify-center items-center p-4 min-h-[300px]">
                                 {isImgLoading ? (
@@ -486,10 +526,8 @@ export default function FileManager() {
                                         src={previewImgUrl}
                                         alt="preview"
                                         className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
-                                        // 图片关闭时清理 URL 对象以防内存泄漏
-                                        onLoad={() => {
-                                            window.URL.revokeObjectURL(previewImgUrl);
-                                        }}
+                                        // Modification 4: 移除了 onLoad 中的 revokeObjectURL，
+                                        // 交给了上面的 useEffect 处理，这样更安全。
                                     />
                                 )}
                             </ModalBody>
