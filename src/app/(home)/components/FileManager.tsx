@@ -3,7 +3,7 @@
 import React, {useEffect, useState, useRef} from "react";
 import {
     Card, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
-    Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Spinner
+    Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Spinner,SortDescriptor
 } from "@nextui-org/react";
 import {
     FilePlus,
@@ -34,6 +34,47 @@ export default function FileManager() {
     const [inputPath, setInputPath] = useState<string>(""); // 输入框中的路径
     const [fileList, setFileList] = useState<FileItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
+        column: "name",     // 默认按名称排序
+        direction: "ascending", // 默认升序
+    });
+
+    const sortedItems = React.useMemo(() => {
+        return [...fileList].sort((a: FileItem, b: FileItem) => {
+            // 规则1: 文件夹始终在文件前面 (符合大多数文件管理器习惯)
+            // 如果你不想要这个功能，可以删掉这个 if 块
+            if (a.type !== b.type) {
+                return a.type === "folder" ? -1 : 1;
+            }
+
+            // 规则2: 根据当前选择的列进行排序
+            let first = a;
+            let second = b;
+            let cmp = 0;
+
+            switch (sortDescriptor.column) {
+                case "name":
+                    // 字符串比较
+                    cmp = first.name.localeCompare(second.name);
+                    break;
+                case "date":
+                    // 时间比较 (假设 date 是字符串，如果是标准格式可以直接比，
+                    // 最好后端返回 timestamp 或 mtime 字段，这里先按字符串比)
+                    cmp = first.date < second.date ? -1 : first.date > second.date ? 1 : 0;
+                    break;
+                case "size":
+                    // 大小比较：必须使用 rawSize (数字)，不能用显示的大小字符串 ("10 KB" < "2 MB" 是错的)
+                    // 代码第214行用到了 rawSize，说明对象里有这个属性
+                    cmp = (first.rawSize || 0) - (second.rawSize || 0);
+                    break;
+                default:
+                    cmp = 0;
+            }
+
+            // 处理升序/降序
+            return sortDescriptor.direction === "descending" ? -cmp : cmp;
+        });
+    }, [sortDescriptor, fileList]);
 
     // 模态框控制
     const {isOpen: isCreateOpen, onOpen: onCreateOpen, onOpenChange: onCreateChange} = useDisclosure();
@@ -389,15 +430,17 @@ export default function FileManager() {
                         selectionMode="none" // 改为 none 避免点击行就选中
                         color="secondary"
                         isHeaderSticky
+                        sortDescriptor={sortDescriptor}
+                        onSortChange={setSortDescriptor}
                     >
                         <TableHeader>
-                            <TableColumn>名称</TableColumn>
-                            <TableColumn>修改时间</TableColumn>
-                            <TableColumn>大小</TableColumn>
+                            <TableColumn key="name" allowsSorting>名称</TableColumn>
+                            <TableColumn key="date" allowsSorting>修改时间</TableColumn>
+                            <TableColumn key="size" allowsSorting>大小</TableColumn>
                             <TableColumn width={120} align="center">操作</TableColumn>
                         </TableHeader>
                         <TableBody
-                            items={fileList}
+                            items={sortedItems}
                             loadingContent={<Spinner label="加载中..." color="secondary"/>}
                             isLoading={isLoading}
                             emptyContent={"暂无文件"}
