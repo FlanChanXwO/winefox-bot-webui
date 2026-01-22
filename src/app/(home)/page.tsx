@@ -39,7 +39,7 @@ import LogView from "./components/Log";
 import FriendsAndGroups from "./components/FriendsAndGroups";
 import AuthGuard from "./components/AuthGuard";
 import DashboardHome from "./components/DashboardHome";
-import ScheduleManager from "@/app/(home)/components/ScheduleManager";
+import ScheduleManager from "@/app/(home)/components/Index";
 import SubscriptionManager from "@/app/(home)/components/SubscriptionManager";
 import ApiSettingsModal from "@/components/ApiSettingsModal";
 import {useBotStore} from "@/store/useBotStore";
