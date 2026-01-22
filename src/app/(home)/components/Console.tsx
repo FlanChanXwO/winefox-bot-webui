@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {
     Card, CardBody, Avatar, Chip, Button, CircularProgress, Select, SelectItem
 } from "@nextui-org/react";
@@ -12,47 +12,36 @@ import {
 import {useBotStore} from "@/store/useBotStore";
 import {useDashboardStore} from "@/hooks/useDashboardData";
 import {FriendAndGroupStatsResponse, getFriendAndGroupStats} from "@/api/friendAndGroup";
-import {getConsoleStats} from "@/api/console"; // [新增] 引入API
+import {getConsoleStats} from "@/api/console";
 import {formatLogTime} from "@/utils/time";
 import {getValueFontSize} from "@/utils/font";
-
-// --- 模拟数据 (图表部分暂时保持模拟，等待后续后端接口) ---
-
-// 1. 活跃群组
-const activityData = [
-    { name: 'test', count: 121 },
-    { name: '123123', count: 15 },
-    { name: '群', count: 5 },
-    { name: '某群', count: 2 },
-];
-
-// 2. 热门插件
-const pluginStatsData = [
-    { name: 'BYM_AI', count: 415 },
-    { name: '商店', count: 112 },
-    { name: '酒狐银行', count: 58 },
-    { name: '签到', count: 29 },
-    { name: '图片超分', count: 5 },
-];
-
-// [修改] 删除旧的 trendData 静态数据，改用 State 管理
+import html2canvas from "html2canvas"; // 引入 html2canvas 用于截图
 
 // --- 辅助组件 ---
-// ... (保持 TimeFilter 和 RingStatCard 不变) ...
-const TimeFilter = ({ active = '年' }: { active?: string }) => {
-    const filters = ['全部', '日', '周', '月', '年'];
+
+// [修改] TimeFilter 支持点击回调和 key 映射
+const TimeFilter = ({ active = 'WEEK', onChange }: { active?: string, onChange?: (key: string) => void }) => {
+    // 映射显示文本到 API 参数 KEY
+    const filters = [
+        { label: '日', key: 'DAY' },
+        { label: '周', key: 'WEEK' },
+        { label: '月', key: 'MONTH' },
+        { label: '年', key: 'YEAR' }
+    ];
+
     return (
         <div className="flex flex-wrap gap-1 justify-end text-xs">
             {filters.map(f => (
                 <span
-                    key={f}
+                    key={f.key}
+                    onClick={() => onChange?.(f.key)}
                     className={`cursor-pointer px-2 py-1 rounded-full transition-colors ${
-                        f === active
+                        f.key === active
                             ? 'bg-pink-400 text-white font-bold shadow-md shadow-pink-200'
                             : 'text-pink-300 hover:bg-pink-50'
                     }`}
                 >
-                    {f}
+                    {f.label}
                 </span>
             ))}
         </div>
@@ -107,23 +96,53 @@ export default function Console() {
         summary,
         fetchSummary,
         messageStats,
-        fetchMessageStats
+        fetchMessageStats,
+        // [新增] 引入新的 Store 状态和方法
+        invokeStats,
+        fetchInvokeStats,
+        activeGroups,
+        fetchActiveGroups,
+        hotPlugins,
+        fetchHotPlugins
     } = useDashboardStore();
 
     // 4. 本地状态
     const [friendAndGroupStats, setFriendAndGroupStats] = useState<FriendAndGroupStatsResponse>({groupCount: 0, friendCount: 0});
-    // [新增] 折线图数据状态
     const [trendChartData, setTrendChartData] = useState<any[]>([]);
+
+    // [新增] 柱状图的时间范围状态
+    const [groupRange, setGroupRange] = useState<string>('WEEK');
+    const [pluginRange, setPluginRange] = useState<string>('WEEK');
+
+    // [新增] 图表下载的 Ref
+    const trendChartRef = useRef<HTMLDivElement>(null);
 
     // 5. 数据获取副作用
     useEffect(() => {
         if (currentBotInfo?.botId) {
+            // 基础数据
             fetchSummary();
             fetchMessageStats();
             fetchFriendAndGroupStats(currentBotInfo.botId);
-            fetchTrendData(); // [新增] 调用获取折线图数据
+            fetchTrendData();
+            // 功能统计
+            fetchInvokeStats();
         }
     }, [currentBotInfo?.botId]);
+
+    // [新增] 监听时间范围变化并获取对应数据
+    useEffect(() => {
+        if (currentBotInfo?.botId) {
+            fetchActiveGroups(groupRange);
+        }
+    }, [currentBotInfo?.botId, groupRange]);
+
+    useEffect(() => {
+        if (currentBotInfo?.botId) {
+            fetchHotPlugins(pluginRange);
+        }
+    }, [currentBotInfo?.botId, pluginRange]);
+
 
     const fetchFriendAndGroupStats = async (botId: number) => {
         try {
@@ -138,25 +157,37 @@ export default function Console() {
         }
     }
 
-    // [新增] 获取并转换折线图数据
     const fetchTrendData = async () => {
         try {
             const res = await getConsoleStats();
             if (res.success && res.data?.trend) {
                 const { dates, msgCounts, callCounts } = res.data.trend;
-
-                // 数据转换：将后端的三个平行数组转换为对象数组
-                // 假设 dates, msgCounts, callCounts 长度一致
                 const chartData = dates.map((date, index) => ({
                     date: date,
                     msg: msgCounts[index] || 0,
                     call: callCounts[index] || 0
                 }));
-
                 setTrendChartData(chartData);
             }
         } catch (error) {
             console.error("获取折线图数据失败:", error);
+        }
+    };
+
+    // [新增] 处理图表下载
+    const handleDownloadChart = async () => {
+        if (!trendChartRef.current) return;
+        try {
+            const canvas = await html2canvas(trendChartRef.current, {
+                backgroundColor: '#ffffff', // 确保背景也是白色的
+                scale: 2 // 提高清晰度
+            });
+            const link = document.createElement('a');
+            link.download = `trend-stats-${new Date().getTime()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (e) {
+            console.error("下载图表失败", e);
         }
     };
 
@@ -169,9 +200,8 @@ export default function Console() {
         <div className="h-full overflow-y-auto bg-transparent p-4 lg:p-6 custom-scrollbar">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-6">
 
-                {/* ... 第一列代码保持不变 ... */}
+                {/* ... 第一列 (用户信息) 保持不变 ... */}
                 <div className="lg:col-span-3 flex flex-col gap-6">
-                    {/* ... 用户卡片 & 插件管理卡片 ... */}
                     <Card className="shadow-sm border-none bg-white min-h-[300px]">
                         <CardBody className="flex flex-col items-center justify-center py-10 gap-5">
                             <div className="relative">
@@ -179,7 +209,6 @@ export default function Console() {
                                     src={currentBotInfo?.avatarUrl} classNames={{img: "opacity-100"}}
                                     className="w-28 h-28 text-large border-4 border-pink-50 shadow-lg shadow-pink-100/50" imgProps={{referrerPolicy: "no-referrer"}}
                                 />
-
                             </div>
                             <div className="text-center space-y-2">
                                 <h2 className="text-2xl font-bold text-pink-500 tracking-wide">{currentBotInfo?.nickname || "我是谁？"}</h2>
@@ -220,32 +249,18 @@ export default function Console() {
                                     <div className="flex justify-between items-center">
                                         <span className="text-xs font-bold text-gray-500">全局禁用被动</span>
                                     </div>
-                                    <Select
-                                        size="sm"
-                                        variant="bordered"
-                                        placeholder="请选择要禁用的被动"
-                                        className="max-w-full"
-                                        classNames={{ trigger: "border-gray-200" }}
-                                    >
+                                    <Select size="sm" variant="bordered" placeholder="请选择要禁用的被动" className="max-w-full" classNames={{ trigger: "border-gray-200" }}>
                                         <SelectItem key="none">无</SelectItem>
                                     </Select>
                                 </div>
-
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">
                                         <span className="text-xs font-bold text-gray-500">全局禁用插件</span>
                                     </div>
-                                    <Select
-                                        size="sm"
-                                        variant="bordered"
-                                        placeholder="请选择要禁用的插件"
-                                        className="max-w-full"
-                                        classNames={{ trigger: "border-gray-200" }}
-                                    >
+                                    <Select size="sm" variant="bordered" placeholder="请选择要禁用的插件" className="max-w-full" classNames={{ trigger: "border-gray-200" }}>
                                         <SelectItem key="none">无</SelectItem>
                                     </Select>
                                 </div>
-
                                 <Button className="w-full bg-pink-400 text-white font-bold shadow-lg shadow-pink-200 mt-4 rounded-xl">
                                     应用设置
                                 </Button>
@@ -255,10 +270,10 @@ export default function Console() {
                 </div>
 
 
-                {/* === 第二列：核心数据环形图与折线图 (col-span-6) === */}
+                {/* === 第二列：核心数据环形图与折线图 === */}
                 <div className="lg:col-span-6 flex flex-col gap-6">
 
-                    {/* ... 两个 RingStatCard 保持不变 ... */}
+                    {/* 消息接收环形图 (保持不变) */}
                     <RingStatCard
                         title={<>(●'◡'●)✿ 消息接收</>}
                         subTitle="勇者结识伙伴，收到的问候，口才+1"
@@ -272,21 +287,22 @@ export default function Console() {
                         ]}
                     />
 
+                    {/* [修改] 功能调用环形图 - 对接 invokeStats 数据 */}
                     <RingStatCard
                         title={<>(/●ヮ●)/ *:･ﾟ✧ 功能调用</>}
                         subTitle="勇者磨砺自身，辛勤的汗水，力量+1"
                         color="text-pink-500"
                         data={[
-                            { val: 631, label: "总数", color: "stroke-orange-500" },
-                            { val: 0, label: "一日内", color: "stroke-gray-300" },
-                            { val: 2, label: "一周内", color: "stroke-purple-400" },
-                            { val: 23, label: "一月内", color: "stroke-blue-400" },
-                            { val: 631, label: "一年内", color: "stroke-green-500" },
+                            { val: invokeStats.total, label: "总数", color: "stroke-orange-500" },
+                            { val: invokeStats.day, label: "一日内", color: "stroke-gray-300" },
+                            { val: invokeStats.week, label: "一周内", color: "stroke-purple-400" },
+                            { val: invokeStats.month, label: "一月内", color: "stroke-blue-400" },
+                            { val: invokeStats.year, label: "一年内", color: "stroke-green-500" },
                         ]}
                     />
 
-                    {/* 3. 消息/调用统计折线图 */}
-                    <Card className="shadow-sm border-none bg-pink-50/30">
+                    {/* 3. 消息/调用统计折线图 (支持下载) */}
+                    <Card className="shadow-sm border-none bg-pink-50/30" ref={trendChartRef}>
                         <CardBody className="p-5">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex flex-col gap-1">
@@ -302,14 +318,19 @@ export default function Console() {
                                         </div>
                                     </div>
                                 </div>
-                                <Button isIconOnly size="sm" variant="light" className="text-pink-300">
+                                <Button
+                                    isIconOnly
+                                    size="sm"
+                                    variant="light"
+                                    className="text-pink-300"
+                                    onPress={handleDownloadChart} // [新增] 绑定下载事件
+                                >
                                     <Download size={16} />
                                 </Button>
                             </div>
 
                             <div className="h-[200px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    {/* [修改] data 属性改为使用 trendChartData */}
                                     <AreaChart data={trendChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="colorMsg" x1="0" y1="0" x2="0" y2="1">
@@ -337,7 +358,7 @@ export default function Console() {
                     </Card>
                 </div>
 
-                {/* === 第三列 ... 代码保持不变 ... === */}
+                {/* === 第三列 === */}
                 <div className="lg:col-span-3 flex flex-col gap-6">
                     <Card className="shadow-sm border-none bg-pink-50/50">
                         <CardBody className="p-5 space-y-4">
@@ -358,40 +379,59 @@ export default function Console() {
                         </CardBody>
                     </Card>
 
+                    {/* 活跃群组柱状图 */}
                     <Card className="shadow-sm border-none bg-white flex-1 min-h-[220px]">
                         <CardBody className="p-4">
                             <div className="flex flex-wrap justify-between items-start mb-2 gap-2">
                                 <h3 className="text-sm font-bold text-pink-500 w-10 leading-tight">活跃群组</h3>
-                                <TimeFilter active="年"/>
+                                <TimeFilter active={groupRange} onChange={setGroupRange}/>
                             </div>
                             <div className="h-[150px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={activityData} layout="vertical" margin={{top: 0, right: 10, left: 0, bottom: 0}}>
+                                    <BarChart
+                                        data={activeGroups}
+                                        layout="vertical"
+                                        margin={{top: 0, right: 20, left: 30, bottom: 0}}
+                                    >
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#fce7f3" />
                                         <XAxis type="number" hide />
-                                        <YAxis dataKey="name" type="category" width={40} axisLine={false} tickLine={false} tick={{fill: '#666', fontSize: 10}} />
+
+                                        {/* 2. [修改] 增大 width 属性，允许显示更长的群名 */}
+                                        <YAxis
+                                            dataKey="name"
+                                            type="category"
+                                            width={70}
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{fill: '#666', fontSize: 10}}
+                                        />
+
                                         <RechartsTooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                                        <Bar dataKey="count" fill="#fb7185" radius={[0, 4, 4, 0]} barSize={16} label={{ position: 'right', fill: '#fb7185', fontSize: 10, fontWeight: 'bold' }} />
+                                        <Bar dataKey="value" fill="#fb7185" radius={[0, 4, 4, 0]} barSize={16} label={{ position: 'right', fill: '#fb7185', fontSize: 10, fontWeight: 'bold' }} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
                         </CardBody>
                     </Card>
 
+                    {/* 热门插件柱状图 */}
                     <Card className="shadow-sm border-none bg-white flex-1 min-h-[220px]">
                         <CardBody className="p-4">
                             <div className="flex flex-wrap justify-between items-start mb-2 gap-2">
                                 <h3 className="text-sm font-bold text-pink-500 w-10 leading-tight">热门插件</h3>
-                                <TimeFilter active="年"/>
+                                <TimeFilter active={pluginRange} onChange={setPluginRange}/>
                             </div>
                             <div className="h-[160px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={pluginStatsData} margin={{top: 15, right: 0, left: -25, bottom: 0}}>
+                                    <BarChart
+                                        data={hotPlugins} // 对接数据
+                                        margin={{top: 15, right: 0, left: -25, bottom: 0}}
+                                    >
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#fce7f3" />
                                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#666', fontSize: 9}} interval={0} angle={-15} textAnchor="end" height={40}/>
                                         <YAxis axisLine={false} tickLine={false} tick={{fill: '#999', fontSize: 10}} />
                                         <RechartsTooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                                        <Bar dataKey="count" fill="#f472b6" radius={[4, 4, 0, 0]} barSize={24} label={{ position: 'top', fill: '#666', fontSize: 10 }} />
+                                        <Bar dataKey="value" fill="#f472b6" radius={[4, 4, 0, 0]} barSize={24} label={{ position: 'top', fill: '#666', fontSize: 10 }} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>

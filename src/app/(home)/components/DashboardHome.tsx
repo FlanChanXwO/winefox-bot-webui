@@ -1,17 +1,20 @@
 "use client";
 
-import React, {useEffect, useRef, useState} from "react";
 import ReactECharts from "echarts-for-react";
+import React, {useEffect, useRef, useState} from "react";
 import {Avatar, Card, CardBody, Chip} from "@nextui-org/react";
 import {User, Users, MessageSquare, Repeat, Server, Activity, Database} from "lucide-react";
 import {useLogStore} from "@/store/useLogStore";
-import {LogItem} from "@/app/(home)/components/Log/LogItem";
 import {useSystemStatus} from "@/hooks/useSystemStatus";
 import {useDashboardStore} from "@/hooks/useDashboardData";
-import {formatLogTime} from "@/utils/time";
 import {useBotStore} from "@/store/useBotStore";
 import {FriendAndGroupStatsResponse, getFriendAndGroupStats} from "@/api/friendAndGroup";
 import {toast} from "sonner";
+import PluginApi from "@/api/plugin"; // 引入 PluginApi
+import { getActiveGroupStats } from "@/api/group";
+import {RankingItem} from "@/api/stats";
+import {formatLogTime} from "@/utils/time";
+import {LogItem} from "@/app/(home)/components/Log/LogItem";   // 引入群组 API
 
 const getEventColor = (type: string) => {
     switch (type) {
@@ -32,6 +35,14 @@ const getEventLabel = (type: string) => {
     }
 }
 
+// 定义时间范围选项
+const TIME_RANGES = [
+    { key: 'ALL', label: '全部' },
+    { key: 'DAY', label: '日' },
+    { key: 'WEEK', label: '周' },
+    { key: 'MONTH', label: '月' },
+    { key: 'YEAR', label: '年' },
+];
 
 export default function DashboardHome() {
     const {logs, connectWebSocket} = useLogStore();
@@ -44,13 +55,20 @@ export default function DashboardHome() {
         logPage,
         isLoadingLogs,
         messageStats,
+        invokeStats,
         fetchConfigs,
         fetchLogs,
-        fetchMessageStats
+        fetchInvokeStats,
+        fetchActiveGroups,
+        fetchMessageStats,
     } = useDashboardStore();
     const {currentBotInfo,availableBots} = useBotStore(state => state);
-    // 好友和群组API
-    const [friendAndGroupStats,setFriendAndGroupStats] = useState<FriendAndGroupStatsResponse>({groupCount: 0, friendCount: 0});
+    const [pluginRange, setPluginRange] = useState('WEEK');
+    const [hotPlugins, setHotPlugins] = useState<RankingItem[]>([]);
+    const [groupRange, setGroupRange] = useState('WEEK');
+    const [activeGroups, setActiveGroups] = useState<RankingItem[]>([]);
+    const [friendAndGroupStats, setFriendAndGroupStats] = useState<FriendAndGroupStatsResponse>({groupCount: 0, friendCount: 0});
+
 
     // 初始化加载数据
     useEffect(() => {
@@ -59,6 +77,10 @@ export default function DashboardHome() {
         fetchLogs(1);       // 获取第一页日志
         fetchMessageStats(); // 获取消息统计
         fetchFriendAndGroupStats(currentBotInfo?.botId); // 获取好友和群组统计数据
+        fetchInvokeStats();
+        // 初始加载图表数据
+        fetchHotPluginsData('WEEK');
+        fetchActiveGroupsData('WEEK');
     }, []);
 
     useEffect(() => {
@@ -77,6 +99,16 @@ export default function DashboardHome() {
         }
     }, [logs]);
 
+
+    // --- 监听 Range 变化 ---
+    useEffect(() => {
+        fetchHotPluginsData(pluginRange);
+    }, [pluginRange]);
+
+    useEffect(() => {
+        fetchActiveGroupsData(groupRange);
+    }, [groupRange]);
+
     const fetchFriendAndGroupStats = async (botId?: number) => {
         if (!botId) return;
         try {
@@ -92,41 +124,99 @@ export default function DashboardHome() {
         }
     }
 
+    const fetchHotPluginsData = async (range: string) => {
+        try {
+            const res = await PluginApi.getHotPluginRanking(range);
+            if (res.data) {
+                setHotPlugins(res.data);
+            } else {
+                setHotPlugins([]);
+            }
+        } catch (e) { console.error(e); }
+    };
 
-    const getBarOption = (title: string, data: number[]) => ({
-        title: {
-            text: title,
-            left: '0',
-            textStyle: {color: '#ec4899', fontSize: 16, fontWeight: 'bold'}
-        },
-        tooltip: {trigger: 'axis'},
-        grid: {left: '3%', right: '4%', bottom: '3%', containLabel: true},
-        xAxis: {
-            type: 'category',
-            data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            axisLine: {lineStyle: {color: '#fbcfe8'}},
-            axisLabel: {color: '#9ca3af'}
-        },
-        yAxis: {
-            type: 'value',
-            splitLine: {lineStyle: {type: 'dashed', color: '#fce7f3'}}
-        },
-        series: [
-            {
-                data: data,
+    const fetchActiveGroupsData = async (range: string) => {
+        try {
+            const res = await getActiveGroupStats(range);
+            if (res.data) {
+                setActiveGroups(res.data);
+            } else {
+                setActiveGroups([]);
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const getRankingOption = (title: string, data: RankingItem[], colorStart: string, colorEnd: string) => {
+        return {
+            title: {
+                text: title,
+                textStyle: { color: '#ec4899', fontSize: 18, fontWeight: 'bold' }, // 调整标题颜色
+                top: 0,
+                left: 0
+            },
+            // 留出空间给右上角的按钮
+            grid: { top: '25%', bottom: '15%', left: '12%', right: '5%' },
+            tooltip: { trigger: 'axis' },
+            xAxis: {
+                type: 'category',
+                data: data.map(item => item.name),
+                axisLine: { lineStyle: { color: '#e5e7eb' } },
+                axisLabel: {
+                    color: '#4b5563',
+                    fontSize: 10,
+                    interval: 0,
+                    rotate: 20 // 稍微倾斜
+                },
+                axisTick: { show: false }
+            },
+            yAxis: {
+                type: 'value',
+                splitLine: { lineStyle: { type: 'dashed', color: '#f3f4f6' } },
+                axisLabel: { color: '#6b7280' }
+            },
+            series: [{
+                data: data.map(item => item.value),
                 type: 'bar',
+                barWidth: '40%',
+                label: {
+                    show: true,
+                    position: 'top',
+                    color: '#374151',
+                    fontWeight: 'bold'
+                },
                 itemStyle: {
                     color: {
-                        type: 'linear',
-                        x: 0, y: 0, x2: 0, y2: 1,
-                        colorStops: [{offset: 0, color: '#f472b6'}, {offset: 1, color: '#fbcfe8'}] // Pink gradient
+                        type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            { offset: 0, color: colorStart },
+                            { offset: 1, color: colorEnd }
+                        ]
                     },
-                    borderRadius: [4, 4, 0, 0]
-                },
-                barWidth: '40%'
-            }
-        ]
-    });
+                    borderRadius: [6, 6, 0, 0]
+                }
+            }]
+        };
+    };
+
+    // --- 筛选按钮渲染组件 ---
+    const renderFilter = (currentKey: string, setKey: (k: string) => void) => (
+        <div className="flex gap-1 absolute top-4 right-4 z-10">
+            {TIME_RANGES.map(t => (
+                <button
+                    key={t.key}
+                    onClick={() => setKey(t.key)}
+                    className={`
+                        text-[10px] px-2 py-0.5 rounded-full transition-all
+                        ${currentKey === t.key
+                        ? 'bg-pink-400 text-white shadow-md shadow-pink-200 font-bold'
+                        : 'bg-pink-50 text-pink-300 hover:bg-pink-100'}
+                    `}
+                >
+                    {t.label}
+                </button>
+            ))}
+        </div>
+    );
 
     return (
         <div className="h-full w-full overflow-y-auto p-2">
@@ -170,7 +260,7 @@ export default function DashboardHome() {
                                 <div className="flex flex-row justify-center items-center bg-gray-50 p-3 rounded-xl">
                                     <Repeat className="text-pink-300 mb-0.5" size={20}/>
                                     <span className="text-xs text-gray-400 ml-1">今日调用</span>
-                                    <span className="text-pink-400 font-bold ml-1 mb-0.5">{0}</span>
+                                    <span className="text-pink-400 font-bold ml-1 mb-0.5">{invokeStats.day}</span>
                                 </div>
                                 <div className="flex flex-row justify-center items-center bg-gray-50 p-3 rounded-xl">
                                     <MessageSquare className="text-pink-300 mb-0.5" size={20}/>
@@ -288,22 +378,22 @@ export default function DashboardHome() {
                         {[
                             {
                                 label: "消息总数",
-                                val: messageStats.total.toString(), // 对接真实数据
+                                val: messageStats.total.toString(),
                                 color: "text-pink-400"
                             },
                             {
                                 label: "今日消息",
-                                val: messageStats.today.toString(), // 对接真实数据
+                                val: messageStats.today.toString(),
                                 color: "text-gray-400"
                             },
                             {
                                 label: "调用总数",
-                                val: "0", // 暂时保持硬编码 (待后续接口)
+                                val: invokeStats.total.toString(),
                                 color: "text-pink-400"
                             },
                             {
                                 label: "今日调用",
-                                val: "0", // 暂时保持硬编码 (待后续接口)
+                                val: invokeStats.day.toString(),
                                 color: "text-gray-400"
                             },
                         ].map((item, idx) => (
@@ -417,18 +507,37 @@ export default function DashboardHome() {
                     </Card>
 
                     {/* 活跃群组 Chart */}
-                    <Card className="shadow-sm border-none">
+                    <Card className="shadow-sm border-none relative overflow-visible">
                         <CardBody className="p-4">
-                            <ReactECharts option={getBarOption('活跃群组', [2984, 662, 182, 118, 50])}
-                                          style={{height: '200px'}}/>
+                            {/* 筛选按钮 */}
+                            {renderFilter(groupRange, setGroupRange)}
+
+                            <ReactECharts
+                                option={getRankingOption(
+                                    '活跃群组',
+                                    activeGroups, // 直接传入 RankingItem[]
+                                    ' #ec4899',
+                                    '#fbcfe8'
+                                )}
+                                style={{height: '220px'}}
+                            />
                         </CardBody>
                     </Card>
 
-                    {/* 热门插件 Chart */}
-                    <Card className="shadow-sm border-none">
+                    {/* 热门插件 Chart (真实数据) */}
+                    <Card className="shadow-sm border-none relative overflow-visible">
                         <CardBody className="p-4">
-                            <ReactECharts option={getBarOption('热门插件', [581, 328, 239, 210, 75])}
-                                          style={{height: '200px'}}/>
+                            {/* 筛选按钮 */}
+                            {renderFilter(pluginRange, setPluginRange)}
+                            <ReactECharts
+                                option={getRankingOption(
+                                    '热门插件',
+                                    hotPlugins, // 直接传入 RankingItem[]
+                                    ' #ec4899',
+                                    '#fbcfe8'
+                                )}
+                                style={{height: '220px'}}
+                            />
                         </CardBody>
                     </Card>
                 </div>

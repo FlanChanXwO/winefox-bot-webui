@@ -46,6 +46,12 @@ export interface ConnectionSummaryResponse {
 }
 
 
+export interface RankingItem {
+    id: string;
+    name: string;
+    value: number;
+}
+
 // --- API 函数 ---
 
 /**

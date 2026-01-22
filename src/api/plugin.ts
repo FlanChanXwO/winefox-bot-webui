@@ -1,5 +1,5 @@
-// src/api/plugin.ts
 import request from '@/utils/request';
+import {RankingItem} from "@/api/stats";
 
 // 对应后端的 PluginListItemResponse
 export interface PluginListItem {
@@ -52,6 +52,15 @@ export interface ConfigItem {
     scope: string;   // "global", "group", "user"
     scopeId: string; // "default", "123456", etc.
     updatedAt: string;
+}
+
+
+export interface InvokeSummaryResponse {
+    total: number;
+    day: number;
+    week: number;
+    month: number;
+    year: number;
 }
 
 
@@ -112,7 +121,16 @@ const pluginApi = {
         return request.delete<void>('/api/plugins/config/reset-scope', {
             params: { pluginId, scope, scopeId }
         });
-    }
+    },
+    // 获取热门插件趋势
+    getHotPluginRanking: (range: string = 'WEEK') => {
+        return request.get<RankingItem[]>('/api/plugins/hot-trends', { params: { range } });
+    },
+
+
+    getInvokeSummary: () => {
+        return request.get<InvokeSummaryResponse>('/api/plugins/summary');
+    },
 };
 
 export default pluginApi;
