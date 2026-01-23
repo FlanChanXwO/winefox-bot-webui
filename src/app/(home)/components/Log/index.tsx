@@ -191,7 +191,7 @@ export default function LogView({ subType }: { subType: 'live' | 'history' | 'er
                                 isIconOnly
                                 size="sm"
                                 className="bg-white text-pink-500 shadow-sm rounded-lg"
-                                onClick={() => {
+                                onPress={() => {
                                     setIsLoading(true);
                                     fetchHistoryLogs(selectedDate, subType).then(setHistoryLogs).finally(() => setIsLoading(false));
                                 }}

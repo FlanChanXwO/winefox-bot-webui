@@ -5,11 +5,11 @@ import {
     Card, CardBody, Button, Chip, Switch, Tooltip,
     Table, TableHeader, TableBody, TableColumn, TableRow, TableCell,
     Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, useDisclosure,
-    Select, SelectItem, Spinner, Popover, PopoverTrigger, PopoverContent, Tabs, Tab
+    Select, SelectItem, Spinner, Popover, PopoverTrigger, PopoverContent, Autocomplete, AutocompleteItem
 } from "@nextui-org/react";
 import {
     CalendarClock, Plus, Play, Trash2, Edit,
-    MessageCircle, Users, Terminal, RefreshCw, AlertCircle, Check, Clock
+    MessageCircle, Users, Terminal, RefreshCw, AlertCircle, Clock
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBotStore } from "@/store/useBotStore";
@@ -26,6 +26,8 @@ import {
     TaskSaveRequest
 } from "@/api/schedule";
 import CronGeneratorPopup from "@/app/(home)/components/ScheduleManager/components/CronGeneratorPopup";
+import friendGroupApi from "@/api/friendGroup";
+import userApi from "@/api/user";
 
 // 映射前端 Tab 到后端枚举
 const TAB_MAP: Record<string, TargetType> = {
@@ -45,6 +47,9 @@ export default function Index() {
     const [tasks, setTasks] = useState<ScheduleTask[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [taskTypes, setTaskTypes] = useState<TaskTypeOption[]>([]);
+    const [suggestedIds, setSuggestedIds] = useState<string[]>([]);
+    const [idLoading, setIdLoading] = useState(false);
+
 
     // 表单状态
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,6 +73,36 @@ export default function Index() {
             }
         });
     }, []);
+
+    // 加载建议 ID 列表
+    const loadSuggestedIds = async () => {
+        // 如果没有选中机器人或不在编辑模式(且未打开)，可以不加载，视需求而定
+        if (!currentBotId || !isOpen) return;
+
+        setIdLoading(true);
+        try {
+            let ids: number[] = [];
+            if (activeTab === 'group') {
+                // 获取群组列表
+                const res = await friendGroupApi.getGroupIds();
+                // 兼容处理：如果返回的是对象且包含data，取data；如果是数组，直接用
+                ids = Array.isArray(res) ? res : (res as any)?.data || [];
+            } else {
+                // 获取用户列表
+                const res = await userApi.getUserIds();
+                ids = Array.isArray(res) ? res : (res as any)?.data || [];
+            }
+            setSuggestedIds(ids.map(String));
+        } catch (e) {
+            console.error("加载ID建议列表失败", e);
+        } finally {
+            setIdLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadSuggestedIds();
+    }, [activeTab, isOpen, currentBotId]);
 
     // 2. 加载任务列表 (当 BotID 变化 或 Tab 变化时)
     const fetchTasks = async () => {
@@ -468,27 +503,43 @@ export default function Index() {
                                 </span>
                             </ModalHeader>
                             <ModalBody className="py-6">
-                                <Input
-                                    autoFocus={!isEditMode}
+                                <Autocomplete
                                     isDisabled={isEditMode}
                                     label={activeTab === 'group' ? "群组 ID (Group ID)" : "用户 ID (User ID)"}
-                                    placeholder="输入纯数字 ID"
+                                    placeholder="输入或选择 ID"
                                     variant="bordered"
-                                    // 移除 type="number" 以便手动验证纯数字 (防止 e/./+ 等字符被浏览器自动处理或放行)
-                                    // 或者保留 type="number" 但在 onChange 中清洗
-                                    value={formData.targetId?.toString() || ''}
-                                    onValueChange={(val) => {
-                                        // 只能输入数字
+                                    // 允许输入自定义值 (关键属性)
+                                    allowsCustomValue
+                                    // 绑定输入框的值
+                                    inputValue={formData.targetId?.toString() || ''}
+                                    // 处理手动输入
+                                    onInputChange={(val) => {
+                                        // 只能输入数字 (正则验证)
                                         if (val === '' || /^\d+$/.test(val)) {
-                                            setFormData({ ...formData, targetId: val ? Number(val) : undefined })
+                                            setFormData({ ...formData, targetId: val ? Number(val) : undefined });
                                         }
                                     }}
+                                    // 处理下拉选择
+                                    onSelectionChange={(key) => {
+                                        if (key) {
+                                            setFormData({ ...formData, targetId: Number(key) });
+                                        }
+                                    }}
+                                    // 验证错误信息
                                     errorMessage={
                                         formData.targetId && !/^\d+$/.test(formData.targetId.toString())
                                             ? "ID必须为纯数字" : ""
                                     }
+                                    isInvalid={!!(formData.targetId && !/^\d+$/.test(formData.targetId.toString()))}
+                                    isLoading={idLoading}
                                     startContent={<Terminal className="text-gray-400" size={16} />}
-                                />
+                                >
+                                    {suggestedIds.map((id) => (
+                                        <AutocompleteItem key={id} value={id}>
+                                            {id}
+                                        </AutocompleteItem>
+                                    ))}
+                                </Autocomplete>
                                 <div className="flex gap-3">
                                     <Select
                                         label="任务类型"
