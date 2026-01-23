@@ -12,7 +12,7 @@ export interface Result<T> {
 export const TOKEN_KEY = 'auth_token'; // 定义存储key常量
 
 const service = axios.create({
-    timeout: 5000,
+    timeout: 50000,
 });
 
 // --- 请求拦截器 ---
