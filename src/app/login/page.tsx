@@ -1,23 +1,40 @@
 'use client';
 
 import React, {useState} from 'react';
-import {Card, CardBody, Input, Button, Link, Image, useDisclosure} from '@nextui-org/react';
-import {Lock, User, LogIn, Eye, EyeOff, Globe} from 'lucide-react';
+import {
+    Card, CardBody, Input, Button, Link, Image, useDisclosure, ModalContent, ModalFooter, Modal, ModalBody,
+    ModalHeader
+} from '@nextui-org/react';
+import {Lock, User, LogIn, Eye, EyeOff, Globe, KeyRound} from 'lucide-react';
 import {motion} from 'framer-motion';
 import ApiSettingsModal from "@/components/ApiSettingsModal";
 import { useRouter } from 'next/navigation';
-import { login } from '@/api/auth';
+import { login,resetPassword  } from '@/api/auth';
 import {toast} from 'sonner';
 
 export default function Login() {
+    // 登录状态
     const [username, setUsername] = useState('admin');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+    // 重置密码
+    const [resetCode, setResetCode] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [isResetting, setIsResetting] = useState(false);
 
     // 控制弹窗状态
     const {isOpen, onOpen, onOpenChange} = useDisclosure();
     const togglePasswordVisibility = () => setIsPasswordVisible(!isPasswordVisible);
+
+    // 控制重置密码弹窗状态
+    const {
+        isOpen: isResetOpen,
+        onOpen: onResetOpen,
+        onOpenChange: onResetOpenChange,
+        onClose: onResetClose
+    } = useDisclosure();
 
     const router = useRouter(); // 初始化路由
 
@@ -57,6 +74,53 @@ export default function Login() {
         }
     };
 
+
+    const handleResetPassword = async () => {
+        if (!resetCode || !newPassword || !confirmPassword) {
+            toast.warning("请填写所有字段");
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            toast.error("两次输入的密码不一致");
+            return;
+        }
+
+        setIsResetting(true);
+        try {
+            await resetPassword({
+                recoveryCode: resetCode,
+                newPassword: newPassword
+            });
+            toast.success("密码重置成功，请使用新密码登录");
+
+            // 清空表单并关闭弹窗
+            setResetCode('');
+            setNewPassword('');
+            setConfirmPassword('');
+            onResetClose();
+        } catch (error: any) {
+            console.error(error);
+            const msg = error.response?.data?.message || error.message || "重置失败，请检查恢复代码";
+            toast.error(msg);
+        } finally {
+            setIsResetting(false);
+        }
+    }
+
+    const inputStyles = {
+        inputWrapper: "bg-[#fffacd] hover:bg-[#fff5b0] focus-within:bg-[#fff5b0] border-none shadow-inner inline-flex items-center pl-2 rounded-md",
+        input: [
+            "text-gray-700 placeholder:text-gray-400 caret-pink-500",
+            "!outline-none focus:!outline-none focus:!ring-0",
+            "bg-transparent",
+            "[&:-webkit-autofill]:shadow-[0_0_0px_1000px_#fffacd_inset]",
+            "[&:-webkit-autofill]:text-gray-700",
+            "hover:[&:-webkit-autofill]:shadow-[0_0_0px_1000px_#fff5b0_inset]",
+            "focus:[&:-webkit-autofill]:shadow-[0_0_0px_1000px_#fff5b0_inset]",
+            "transition-shadow duration-300"
+        ],
+    };
+
     return (
         <motion.div
             className="w-full min-h-[100dvh] flex items-center justify-center p-4"
@@ -65,7 +129,56 @@ export default function Login() {
             transition={{duration: 0.5}}
         >
             <ApiSettingsModal isOpen={isOpen} onOpenChange={onOpenChange}/>
-
+            <Modal isOpen={isResetOpen} onOpenChange={onResetOpenChange} placement="center">
+                <ModalContent>
+                    {(onClose) => (
+                        <>
+                            <ModalHeader className="flex flex-col gap-1 text-[#ff7eb3]">重置密码</ModalHeader>
+                            <ModalBody>
+                                <p className="text-xs text-gray-500 mb-2">请输入管理员提供的恢复代码(Recovery Code)以重置您的密码。</p>
+                                <Input
+                                    label="恢复代码"
+                                    placeholder="请输入 Recovery Code"
+                                    variant="bordered"
+                                    value={resetCode}
+                                    onValueChange={setResetCode}
+                                    startContent={<KeyRound className="text-default-400" size={18} />}
+                                />
+                                <Input
+                                    label="新密码"
+                                    placeholder="请输入新密码"
+                                    type="password"
+                                    variant="bordered"
+                                    value={newPassword}
+                                    onValueChange={setNewPassword}
+                                    startContent={<Lock className="text-default-400" size={18} />}
+                                />
+                                <Input
+                                    label="确认新密码"
+                                    placeholder="请再次输入新密码"
+                                    type="password"
+                                    variant="bordered"
+                                    value={confirmPassword}
+                                    onValueChange={setConfirmPassword}
+                                    startContent={<Lock className="text-default-400" size={18} />}
+                                />
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button color="danger" variant="light" onPress={onClose}>
+                                    取消
+                                </Button>
+                                <Button
+                                    className="bg-[#ff7eb3] text-white font-bold"
+                                    onPress={handleResetPassword}
+                                    isLoading={isResetting}
+                                >
+                                    确认重置
+                                </Button>
+                            </ModalFooter>
+                        </>
+                    )}
+                </ModalContent>
+            </Modal>
             <Card
                 className="w-full max-w-[380px] min-h-[500px] shadow-2xl bg-white/95 backdrop-blur-sm rounded-3xl overflow-hidden"
             >
@@ -104,19 +217,7 @@ export default function Login() {
                                 onValueChange={setUsername}
                                 startContent={<User className="text-default-400 pointer-events-none flex-shrink-0 mr-2"
                                                     size={20}/>}
-                                classNames={{
-                                    inputWrapper: "bg-[#fffacd] hover:bg-[#fff5b0] focus-within:bg-[#fff5b0] border-none shadow-inner inline-flex items-center pl-2 rounded-md",
-                                    input: [
-                                        "text-gray-700 placeholder:text-gray-400 caret-pink-500",
-                                        "!outline-none focus:!outline-none focus:!ring-0",
-                                        "bg-transparent",
-                                        "[&:-webkit-autofill]:shadow-[0_0_0px_1000px_#fffacd_inset]",
-                                        "[&:-webkit-autofill]:text-gray-700",
-                                        "hover:[&:-webkit-autofill]:shadow-[0_0_0px_1000px_#fff5b0_inset]",
-                                        "focus:[&:-webkit-autofill]:shadow-[0_0_0px_1000px_#fff5b0_inset]",
-                                        "transition-shadow duration-300"
-                                    ],
-                                }}
+                                classNames={inputStyles}
                             />
                         </div>
 
@@ -125,12 +226,7 @@ export default function Login() {
                             <Input
                                 size="lg"
                                 placeholder="请输入密码"
-                                type={!isPasswordVisible ? "text" : "password"} // 这里修正了原来代码的一个小逻辑反转（原来是!isPasswordVisible ? text : password，如果EyeOff是闭眼通常代表隐藏）
-                                // 通常 Eye = 可见(text), EyeOff = 不可见(password)
-                                // 你之前的逻辑: !isPasswordVisible (默认false->true) -> text. 意思是默认不可见?
-                                // 修正逻辑: 如果 isPasswordVisible 为 true，显示 text；否则显示 password
-                                // 建议: type={isPasswordVisible ? "text" : "password"}
-                                // (下方已按原代码逻辑保留，如有需要请自行调整)
+                                type={!isPasswordVisible ? "text" : "password"}
                                 value={password}
                                 onValueChange={setPassword}
                                 startContent={
@@ -151,18 +247,8 @@ export default function Login() {
                                     </button>
                                 }
                                 classNames={{
-                                    inputWrapper: "bg-[#fffacd] hover:bg-[#fff5b0] focus-within:bg-[#fff5b0] border-none shadow-inner inline-flex items-center pl-2 pr-2 rounded-xl",
-                                    input: [
-                                        "text-gray-700 placeholder:text-gray-400 caret-pink-500",
-                                        "!outline-none focus:!outline-none focus:!ring-0",
-                                        "bg-transparent",
-                                        "[&:-webkit-autofill]:!shadow-[0_0_0_1000px_#fffacd_inset]",
-                                        "[&:-webkit-autofill]:!text-gray-700",
-                                        "[&:-webkit-autofill]:!-webkit-text-fill-color-gray-700",
-                                        "hover:[&:-webkit-autofill]:!shadow-[0_0_0_1000px_#fff5b0_inset]",
-                                        "focus:[&:-webkit-autofill]:!shadow-[0_0_0_1000px_#fff5b0_inset]",
-                                        "transition-shadow duration-300"
-                                    ],
+                                    ...inputStyles,
+                                    inputWrapper: inputStyles.inputWrapper + " pr-2 rounded-xl"
                                 }}
                             />
                         </div>
@@ -196,7 +282,11 @@ export default function Login() {
                             </div>
 
                             <div className="flex justify-center mt-2">
-                                <Link href="#" className="text-[#ff7eb3] text-sm hover:underline hover:text-[#ff6b9d]">
+                                <Link
+                                    href="#"
+                                    onPress={onResetOpen}
+                                    className="text-[#ff7eb3] text-sm hover:underline hover:text-[#ff6b9d]"
+                                >
                                     忘记密码
                                 </Link>
                             </div>
