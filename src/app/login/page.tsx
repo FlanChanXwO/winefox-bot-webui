@@ -72,17 +72,27 @@ export default function Login() {
                 <div className="h-4 w-full bg-[#ff7eb3] flex-shrink-0"/>
 
                 <CardBody className="flex flex-col gap-6 justify-center overflow-visible">
-                    {/* Logo 区域 */}
-                    <div className="flex justify-center mb-4">
-                        <div className="relative w-48 h-24 flex items-center justify-center">
+                    {/* Logo  */}
+                    <div className="mb-8 px-4 flex flex-col items-center justify-center gap-2">
+                        <div className="relative w-20 h-20 hover:scale-105 transition-transform duration-300">
                             <Image
-                                src="/logo-placeholder.png"
+                                src="/logo_1.png"
                                 alt="WineFox Bot Logo"
+                                width={80}
+                                height={80}
                                 className="object-contain"
-                                fallbackSrc="https://placehold.co/200x100/ffb6c1/ffffff?text=WineFox+Bot"
                             />
                         </div>
+
+                        {/* 文字在下方 */}
+                        <div className="flex items-baseline gap-1">
+                            <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-400 drop-shadow-sm">
+                                WineFox
+                            </h1>
+                            <span className="text-xl font-bold text-pink-300">Bot</span>
+                        </div>
                     </div>
+
 
                     <form onSubmit={handleLogin} className="flex flex-col gap-6 w-full">
                         <div className="space-y-2 ">

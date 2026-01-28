@@ -1,5 +1,5 @@
 "use client";
-import {useEffect, useState} from "react";
+import React, {useEffect, useState} from "react";
 import {
     Button,
     Avatar,
@@ -7,7 +7,7 @@ import {
     Dropdown,
     DropdownTrigger,
     DropdownMenu,
-    DropdownItem
+    DropdownItem, Image
 } from "@nextui-org/react";
 import {
     LayoutDashboard,
@@ -148,18 +148,30 @@ export default function Home() {
 
     // 侧边栏内容组件 (提取出来以便复用)
     // 侧边栏内容组件 (已移除底部设置按钮，改为在外部统一渲染)
-    const SidebarContent = () => (
+    const renderSidebarContent = () => (
         <>
             {/* Logo */}
             <div
-                className={`mb-6 px-4 relative transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
-                <div className="relative text-center mt-4">
-                    <h1 className="text-3xl font-black text-pink-300 transform -rotate-6 select-none"
-                        style={{textShadow: "2px 2px 0px #fff"}}>WineFox</h1>
-                    <h1 className="text-4xl font-black text-pink-400 transform rotate-3 -mt-2 ml-4 select-none"
-                        style={{textShadow: "2px 2px 0px #fff"}}>Bot</h1>
+                className={`mb-6 px-4 relative transition-all duration-300 flex items-center justify-center gap-2 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
+
+                {/* 左侧：图片容器 */}
+                <div className="relative w-16 h-16 flex-shrink-0">
+                    <Image
+                        src="/logo_2.png"
+                        alt="WineFox Bot Logo"
+                        className="object-contain -rotate-4"
+                    />
+                </div>
+
+                {/* 右侧：文字容器 - 作为一个整体列 */}
+                <div className="relative flex flex-col justify-center">
+                    <h1 className="text-xl font-black text-pink-300 transform -rotate-6 select-none leading-none"
+                        style={{textShadow: "1px 1px 0px #fff"}}>WineFox</h1>
+                    <h1 className="text-2xl font-black text-pink-400 transform rotate-3 mt-1 ml-5 select-none leading-none"
+                        style={{textShadow: "1px 1px 0px #fff"}}>Bot</h1>
                 </div>
             </div>
+
 
             {/* Logo Placeholder for Collapsed Mode */}
             {isSidebarCollapsed && (
@@ -320,7 +332,7 @@ export default function Home() {
                     </div>
 
                     {/* 菜单内容 */}
-                    <SidebarContent/>
+                    {renderSidebarContent()}
 
                     {/* --- 底部统一控制区 (设置 + 移动端折叠) --- */}
                     {/* pb-20 是为了避开左下角的红色调试球 */}

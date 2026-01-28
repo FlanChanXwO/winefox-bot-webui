@@ -222,12 +222,12 @@ export default function Console() {
                                     </p>
                                     <p className="text-xs text-gray-400 mt-1">好友数量</p>
                                 </div>
-                                <div className="text-center group cursor-pointer">
-                                    <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-1 group-hover:bg-green-100 transition-colors">
-                                        <Power className="w-4 h-4 text-green-500" />
-                                    </div>
-                                    <p className="text-xs text-gray-400">全局开关</p>
-                                </div>
+                                {/*<div className="text-center group cursor-pointer">*/}
+                                {/*    <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-1 group-hover:bg-green-100 transition-colors">*/}
+                                {/*        <Power className="w-4 h-4 text-green-500" />*/}
+                                {/*    </div>*/}
+                                {/*    <p className="text-xs text-gray-400">全局开关</p>*/}
+                                {/*</div>*/}
                                 <div className="text-center group cursor-pointer">
                                     <p className="text-xl font-bold text-green-500 group-hover:scale-110 transition-transform">
                                         {friendAndGroupStats.groupCount}
@@ -238,35 +238,35 @@ export default function Console() {
                         </CardBody>
                     </Card>
 
-                    <Card className="shadow-sm border-none bg-white flex-1">
-                        <CardBody className="p-6">
-                            <h3 className="text-md font-bold text-pink-500 flex items-center gap-2 mb-6 line-through">
-                                <Puzzle size={18} /> Bot插件管理
-                            </h3>
+                    {/*<Card className="shadow-sm border-none bg-white flex-1">*/}
+                    {/*    <CardBody className="p-6">*/}
+                    {/*        <h3 className="text-md font-bold text-pink-500 flex items-center gap-2 mb-6 line-through">*/}
+                    {/*            <Puzzle size={18} /> Bot插件管理*/}
+                    {/*        </h3>*/}
 
-                            <div className="space-y-6">
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-xs font-bold text-gray-500">全局禁用被动</span>
-                                    </div>
-                                    <Select size="sm" variant="bordered" placeholder="请选择要禁用的被动" className="max-w-full" classNames={{ trigger: "border-gray-200" }}>
-                                        <SelectItem key="none">无</SelectItem>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-xs font-bold text-gray-500">全局禁用插件</span>
-                                    </div>
-                                    <Select size="sm" variant="bordered" placeholder="请选择要禁用的插件" className="max-w-full" classNames={{ trigger: "border-gray-200" }}>
-                                        <SelectItem key="none">无</SelectItem>
-                                    </Select>
-                                </div>
-                                <Button className="w-full bg-pink-400 text-white font-bold shadow-lg shadow-pink-200 mt-4 rounded-xl">
-                                    应用设置
-                                </Button>
-                            </div>
-                        </CardBody>
-                    </Card>
+                    {/*        <div className="space-y-6">*/}
+                    {/*            <div className="space-y-2">*/}
+                    {/*                <div className="flex justify-between items-center">*/}
+                    {/*                    <span className="text-xs font-bold text-gray-500">全局禁用被动</span>*/}
+                    {/*                </div>*/}
+                    {/*                <Select size="sm" variant="bordered" placeholder="请选择要禁用的被动" className="max-w-full" classNames={{ trigger: "border-gray-200" }}>*/}
+                    {/*                    <SelectItem key="none">无</SelectItem>*/}
+                    {/*                </Select>*/}
+                    {/*            </div>*/}
+                    {/*            <div className="space-y-2">*/}
+                    {/*                <div className="flex justify-between items-center">*/}
+                    {/*                    <span className="text-xs font-bold text-gray-500">全局禁用插件</span>*/}
+                    {/*                </div>*/}
+                    {/*                <Select size="sm" variant="bordered" placeholder="请选择要禁用的插件" className="max-w-full" classNames={{ trigger: "border-gray-200" }}>*/}
+                    {/*                    <SelectItem key="none">无</SelectItem>*/}
+                    {/*                </Select>*/}
+                    {/*            </div>*/}
+                    {/*            <Button className="w-full bg-pink-400 text-white font-bold shadow-lg shadow-pink-200 mt-4 rounded-xl">*/}
+                    {/*                应用设置*/}
+                    {/*            </Button>*/}
+                    {/*        </div>*/}
+                    {/*    </CardBody>*/}
+                    {/*</Card>*/}
                 </div>
 
 

@@ -6,7 +6,7 @@ import {
     Modal, ModalContent, ModalHeader, ModalBody, ModalFooter,
     Button, Spinner, Select, SelectItem, Tabs, Tab, Chip, Card, CardHeader, CardBody,  Autocomplete, AutocompleteItem
 } from "@nextui-org/react";
-import { Save, Globe, Users, User, RefreshCw, Trash2, List, Settings, AlertTriangle } from "lucide-react";
+import {Save, Globe, Users, User, RefreshCw, Trash2, List, Settings, AlertTriangle, Edit} from "lucide-react";
 import pluginApi, { PluginConfigSchema, ConfigItem } from "@/api/plugin";
 import { toast } from "sonner";
 import ConfigFormRender from "./ConfigFormRender";
@@ -91,9 +91,12 @@ export default function PluginConfigModal({ isOpen, onClose, pluginId }: PluginC
             if (res.success && res.data) {
                 setSchema(res.data);
                 const initValues: Record<string, any> = {};
-                res.data.fields.forEach(field => {
-                    initValues[field.key] = field.value ?? field.defaultValue;
-                });
+                // 防御性检查：确保 fields 存在
+                if (res.data.fields && Array.isArray(res.data.fields)) {
+                    res.data.fields.forEach(field => {
+                        initValues[field.key] = field.value ?? field.defaultValue;
+                    });
+                }
                 setFormValues(initValues);
             } else {
                 toast.error(res.message || "获取配置失败");
@@ -108,16 +111,13 @@ export default function PluginConfigModal({ isOpen, onClose, pluginId }: PluginC
 
     // 2. 加载列表 (修改逻辑：查询全部)
     const loadConfigList = async () => {
-        // ★ 修改：列表页查询不依赖具体的 input ID，而是查询该作用域下所有记录
         setListLoading(true);
         try {
-            // 如果是 GLOBAL，scopeId 是 default；如果是 GROUP/USER，scopeId 传 null/all 让后端查所有
             const queryId = listFilterScope === "GLOBAL" ? "default" : undefined;
-
             const res = await pluginApi.getConfigList(listFilterScope, queryId || "");
             if (res.success && res.data) {
-                // 前端过滤：只保留当前插件的 key
-                const prefix = schema?.fields[0]?.key.split('.')[0];
+                // 安全获取前缀，防止 schema.fields 为空导致报错
+                const prefix = schema?.fields?.[0]?.key?.split('.')[0];
                 const filtered = prefix
                     ? res.data.filter(item => item.key.startsWith(prefix))
                     : res.data;
@@ -213,6 +213,47 @@ export default function PluginConfigModal({ isOpen, onClose, pluginId }: PluginC
         } catch (e) {
             toast.error("操作失败");
         }
+    };
+
+
+    const handleEditGroup = (group: GroupedConfig) => {
+        if (!schema) return;
+
+        // 1. 切换 Tab
+        setActiveTab("form");
+
+        // 2. 填充作用域
+        // 确保 Scope 大写匹配 Select 的 key
+        const scopeKey = group.scope.toUpperCase();
+        setTargetScope(scopeKey);
+
+        // 如果是全局，ID 留空；否则填入 ID
+        const newId = (scopeKey === "GLOBAL" || group.scopeId === "default") ? "" : group.scopeId;
+        setTargetScopeId(newId);
+
+        // 3. 填充表单值
+        const newValues: Record<string, any> = {};
+
+        if (schema.fields && schema.fields.length > 0) {
+            schema.fields.forEach(field => {
+                // 默认使用 Schema 定义的默认值
+                let val = field.defaultValue;
+
+                // 在当前选中的组中查找是否有已保存的配置项
+                const savedItem = group.items.find(item => item.key === field.key);
+
+                // 如果找到了，覆盖默认值
+                if (savedItem) {
+                    val = savedItem.value;
+                }
+                newValues[field.key] = val;
+            });
+        } else {
+            console.warn("Schema fields is empty, cannot populate form.");
+        }
+
+        setFormValues(newValues);
+        toast.info(`已加载 [${scopeKey} : ${group.scopeId}] 的配置，修改后请点击保存`);
     };
 
     const loadSuggestedIds = async (scope: string) => {
@@ -400,6 +441,15 @@ export default function PluginConfigModal({ isOpen, onClose, pluginId }: PluginC
                                                                             </span>
                                                                         </div>
                                                                     </div>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        color="primary"
+                                                                        variant="light"
+                                                                        startContent={<Edit size={14}/>}
+                                                                        onPress={() => handleEditGroup(group)}
+                                                                    >
+                                                                        编辑
+                                                                    </Button>
                                                                     <Button
                                                                         size="sm"
                                                                         color="danger"
