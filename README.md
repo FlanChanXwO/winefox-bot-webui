@@ -12,21 +12,8 @@
 
 ## 📸 页面截图
 
-### 1. 登录页面 (`/login`)
-
-用户通过此页面访问WebUI。简洁明了的设计，聚焦于安全验证。
-
-![登录页面截图](https://storage.googleapis.com/generativeai-assets/project-screenshots/login.png)
-
-### 2. 主控台页面 (`/`)
-
-登录后，用户将进入主控台。这是核心交互界面，您可以在这里监控和管理BOT。
-
-*   **顶部标签栏**: 轻松切换不同的BOT实例或功能模块。
-*   **日志输出区**: 实时显示BOT的详细日志信息。
-*   **侧边栏**: (如果设计中有) 用于导航和快速访问不同功能。
-
-![主控台页面截图](https://storage.googleapis.com/generativeai-assets/project-screenshots/console.png)
+- [PC 预览文档](docs/PC_PREVIEW.md)
+- [移动端预览文档](docs/MOBILE_PREVIEW.md)
 
 ## 🚀 快速开始
 
