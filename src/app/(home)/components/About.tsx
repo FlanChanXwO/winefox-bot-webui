@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import {Card, CardBody, Chip, Divider, Link} from "@nextui-org/react";
+import {Card, CardBody, Chip, Divider, Image, Link} from "@nextui-org/react";
 import {LayoutTemplate, Server} from "lucide-react";
 
 export default function About() {
@@ -13,19 +13,26 @@ export default function About() {
 
                 {/* 顶部 Logo 区域 */}
                 <div className="flex flex-col items-center justify-center pt-8 pb-4">
-                    {/* 这里放你的 Logo 图片，如果没有具体图片资源，我用了一个占位符示意 */}
-                    <div className="relative w-64 h-24 mb-4 transition-transform hover:scale-105 duration-300">
-                        {/* 假设你有一个 logo 图片放在 public 目录下 */}
-                        <img
-                            src="/logo.png"
-                            alt="Zhenxun Bot Logo"
-                            className="object-contain w-full h-full"
-                            // 如果没有图片，这段代码会显示一个空的区域，你可以替换成真实的 <Image /> 组件
-                            onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                e.currentTarget.parentElement!.innerHTML = '<div class="text-4xl font-black text-pink-300 transform -rotate-6 select-none">WineFox Bot</div>';
-                            }}
-                        />
+                    {/* Logo */}
+                    <div
+                        className={`mb-6 px-4 relative transition-all duration-300 flex items-center justify-center gap-2`}>
+
+                        {/* 左侧：图片容器 */}
+                        <div className="relative w-16 h-16 flex-shrink-0">
+                            <Image
+                                src="/logo_2.png"
+                                alt="WineFox Bot Logo"
+                                className="object-contain -rotate-4"
+                            />
+                        </div>
+
+                        {/* 右侧：文字容器 - 作为一个整体列 */}
+                        <div className="relative flex flex-col justify-center">
+                            <h1 className="text-xl font-black text-pink-300 transform -rotate-6 select-none leading-none"
+                                style={{textShadow: "1px 1px 0px #fff"}}>WineFox</h1>
+                            <h1 className="text-2xl font-black text-pink-400 transform rotate-3 mt-1 ml-5 select-none leading-none"
+                                style={{textShadow: "1px 1px 0px #fff"}}>Bot</h1>
+                        </div>
                     </div>
 
                     <h1 className="text-3xl font-bold text-slate-700 mb-6">关于我们</h1>
