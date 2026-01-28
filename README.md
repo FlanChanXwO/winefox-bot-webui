@@ -1,6 +1,7 @@
 # Winefox Bot WebUI
 
 这是一个为 Winefox Bot 量身打造的现代化Web用户界面，旨在提供一个直观、高效的方式来管理和监控您的BOT。
+> 注意：在`winefox-bot`项目中`releases`下的资源包中已经集成了此WebUI，无需单独部署。
 
 ## ✨ 功能特性
 
@@ -20,7 +21,6 @@
 ### 环境要求
 
 *   Node.js >= 22.0.0
-*   pnpm (或 npm/yarn)
 
 ### 安装与启动
 
@@ -51,6 +51,11 @@
 *   **[Tailwind CSS](https://tailwindcss.com/)**: 一个功能类优先的CSS框架，用于快速构建自定义设计。
 *   **[TypeScript](https://www.typescriptlang.org/)**: 为JavaScript添加了类型系统，增强了代码的可维护性。
 *   **[Aceternity UI](https://ui.aceternity.com/)** & **[NextUI](https://nextui.org/)**: 精美的React组件库，用于快速构建高质量的界面。
+
+## ✅ 待办清单
+
+* [ ] 根据后端项目的功能进度完善前端功能
+* [ ] 优化移动端页面与响应式样式
 
 ## 🤝 参与贡献
 欢迎提交 [Pull Request](https://github.com/FlanChanXwO/winefox-bot-webui/pulls) 或 [Issue](https://github.com/FlanChanXwO/winefox-bot-webui/issues)！
