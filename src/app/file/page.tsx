@@ -23,21 +23,27 @@ import {
 } from "@/api/fileManager";
 import { TOKEN_KEY } from "@/utils/request";
 import {useModalBackHandler} from "@/hooks/useModalBackHandler";
+import {useSearchParams} from "next/dist/client/components/navigation";
+import {useRouter} from "next/navigation";
 // --- 辅助函数：判断是否为图片 ---
 const isImageFile = (filename: string) => {
     return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(filename);
 };
 
-export default function FileManager() {
+export default function FilePage() {
     // 状态管理
-    const [currentPath, setCurrentPath] = useState<string>(""); // 当前路径，空字符串表示根目录
-    const [inputPath, setInputPath] = useState<string>(""); // 输入框中的路径
+    const router =          useRouter();
+    const searchParams = useSearchParams();
+    const initialPath = searchParams.get("path") ? decodeURIComponent(searchParams.get("path")!) : "";
+    const [currentPath, setCurrentPath] = useState<string>(initialPath);
+    const [inputPath, setInputPath] = useState<string>(initialPath);
     const [fileList, setFileList] = useState<FileItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
         column: "name",     // 默认按名称排序
         direction: "ascending", // 默认升序
     });
+
 
     const sortedItems = React.useMemo(() => {
         return [...fileList].sort((a: FileItem, b: FileItem) => {
@@ -95,6 +101,31 @@ export default function FileManager() {
     // 引用
     const isBackRef = useRef(false);
 
+    useEffect(() => {
+        // 构建新的查询参数
+        const params = new URLSearchParams(searchParams.toString());
+        if (currentPath) {
+            params.set("path", currentPath);
+        } else {
+            params.delete("path"); // 如果是根目录，移除参数让 URL 更干净
+        }
+
+        router.replace(`?${params.toString()}`, { scroll: false });
+
+        // 同时更新输入框和发起请求
+        setInputPath(currentPath);
+        fetchFiles(currentPath);
+    }, [currentPath]); // 依赖项只留 currentPath
+
+    // 4. (可选) 监听 URL 变化 (比如用户点击浏览器的前进/后退按钮)
+    // 这样浏览器的后退按钮也能正常工作了
+    useEffect(() => {
+        const urlPath = searchParams.get("path") ? decodeURIComponent(searchParams.get("path")!) : "";
+        if (urlPath !== currentPath) {
+            setCurrentPath(urlPath);
+        }
+    }, [searchParams]);
+
     // 监听后退键逻辑
     useEffect(() => {
         if (isImgOpen) {
@@ -121,8 +152,7 @@ export default function FileManager() {
         }
     }, [isImgOpen, onImgClose]);
 
-    // Modification 3: 安全的图片 URL 清理逻辑
-    // 当 previewImgUrl 改变或者组件卸载时，释放旧的 URL 内存
+
     useEffect(() => {
         return () => {
             if (previewImgUrl) {

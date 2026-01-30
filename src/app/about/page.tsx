@@ -4,7 +4,7 @@ import React from "react";
 import {Card, CardBody, Chip, Divider, Image, Link} from "@nextui-org/react";
 import {LayoutTemplate, Server} from "lucide-react";
 
-export default function About() {
+export default function Page() {
     const qqgroupLink = "https://qm.qq.com/q/ogWOL9TaBE";
 
     return (

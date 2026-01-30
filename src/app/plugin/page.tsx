@@ -5,9 +5,9 @@ import { Card, CardBody, Chip, Button, Spinner, useDisclosure } from "@nextui-or
 import { Power, Settings, Trash2 } from "lucide-react";
 import pluginApi, { PluginListItem } from "@/api/plugin";
 import { toast } from "sonner";
-import PluginConfigModal from "@/app/(home)/components/PluginList/components/PluginConfigModal";
+import PluginConfigModal from "@/app/plugin/components/PluginConfigModal";
 
-export default function Index() {
+export default function Page() {
     const [plugins, setPlugins] = useState<PluginListItem[]>([]);
     const [listLoading, setListLoading] = useState(false);
 
@@ -61,7 +61,7 @@ export default function Index() {
     }
 
     return (
-        <div className="flex flex-col h-full gap-4 px-6 pb-4">
+        <div className="flex flex-col h-full gap-4 px-6 pb-4 overflow-y-auto">
             <Card className="bg-white/80 border-none shadow-sm flex-none">
                 <CardBody className="flex flex-row justify-between items-center py-3">
                     <div className="flex gap-2 items-center">
@@ -72,7 +72,7 @@ export default function Index() {
                 </CardBody>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pr-2 scrollbar-hide">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4  pr-2 scrollbar-hide">
                 {plugins.map((plugin) => (
                     <Card key={plugin.id} className="border border-pink-100 shadow-sm hover:shadow-md transition-shadow">
                         <CardBody className="p-4 flex flex-col justify-between h-[180px]">

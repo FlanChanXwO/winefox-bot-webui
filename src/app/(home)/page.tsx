@@ -1,491 +1,548 @@
 "use client";
-import React, {useEffect, useState} from "react";
-import {
-    Button,
-    Avatar,
-    ScrollShadow, useDisclosure,
-    Dropdown,
-    DropdownTrigger,
-    DropdownMenu,
-    DropdownItem, Image
-} from "@nextui-org/react";
-import {
-    LayoutDashboard,
-    Puzzle,
-    FolderOpen,
-    Power,
-    Timer,
-    Newspaper,
-    Bot,
-    Home as HomeIcon,
-    Terminal,
-    MessageCircle,
-    ChevronDown,
-    ChevronRight,
-    RefreshCw,
-    Clock,
-    Bug,
-    Menu,
-    X,
-    PanelLeftClose,
-    PanelLeftOpen, Globe
-} from "lucide-react";
 
-// 引入拆分后的组件
-import Console from "./components/Console";
-import PluginList from "./components/PluginList";
-import FileManager from "./components/FileManager";
-import LogView from "./components/Log";
-import FriendsAndGroups from "./components/FriendsAndGroups";
-import AuthGuard from "./components/AuthGuard";
-import DashboardHome from "./components/DashboardHome";
-import ScheduleManager from "@/app/(home)/components/ScheduleManager";
-import SubscriptionManager from "@/app/(home)/components/SubscriptionManager";
-import ApiSettingsModal from "@/components/ApiSettingsModal";
+import ReactECharts from "echarts-for-react";
+import React, {useEffect, useRef, useState} from "react";
+import {Avatar, Card, CardBody, Chip} from "@nextui-org/react";
+import {User, Users, MessageSquare, Repeat, Server, Activity, Database} from "lucide-react";
+import {useLogStore} from "@/store/useLogStore";
+import {useSystemStatus} from "@/hooks/useSystemStatus";
+import {useDashboardStore} from "@/hooks/useDashboardData";
 import {useBotStore} from "@/store/useBotStore";
-import About from "@/app/(home)/components/About"; // 引入刚才新建的组件
+import {FriendAndGroupStatsResponse, getFriendAndGroupStats} from "@/api/friendAndGroup";
+import {toast} from "sonner";
+import PluginApi from "@/api/plugin"; // 引入 PluginApi
+import { getActiveGroupStats } from "@/api/group";
+import {RankingItem} from "@/api/stats";
+import {formatLogTime} from "@/utils/time";
+import {LogItem} from "@/components/Log/LogItem";
 
-// --- 主页面组件 ---
-export default function Home() {
-    const [activeTab, setActiveTab] = useState("dashboard");
-    const [logsOpen, setLogsOpen] = useState(false);
+const getEventColor = (type: string) => {
+    switch (type) {
+        case '连接': return "success";
+        case '断开': return "warning";
+        case '错误': return "danger";
+        default: return "default";
+    }
+};
 
-    // 控制侧边栏状态
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 移动端开关
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // PC端折叠
+const getEventLabel = (type: string) => {
+    switch (type) {
+        case 'CONNECT': return "连接";
+        case 'DISCONNECT': return "断开";
+        case 'RECONNECT': return "重连";
+        case 'ERROR': return "错误";
+        default: return type;
+    }
+}
 
-    const {isOpen: isSettingsOpen, onOpen: onSettingsOpen, onOpenChange: onSettingsOpenChange} = useDisclosure(); // API地址设置
+// 定义时间范围选项
+const TIME_RANGES = [
+    { key: 'ALL', label: '全部' },
+    { key: 'DAY', label: '日' },
+    { key: 'WEEK', label: '周' },
+    { key: 'MONTH', label: '月' },
+    { key: 'YEAR', label: '年' },
+];
+
+export default function DashboardHome() {
+    const {logs, connectWebSocket} = useLogStore();
+    const logsContainerRef = useRef<HTMLDivElement>(null);
+    // 使用 Hook 获取实时数据，自动轮询
+    const {status} = useSystemStatus();
     const {
-        initBots,
-        currentBotInfo,
-        availableBots,
-        switchBot,
-        currentBotId
-    } = useBotStore(state => state);
+        configs,
+        logs: dbLogs,
+        logPage,
+        isLoadingLogs,
+        messageStats,
+        invokeStats,
+        fetchConfigs,
+        fetchLogs,
+        fetchInvokeStats,
+        fetchActiveGroups,
+        fetchMessageStats,
+    } = useDashboardStore();
+    const {currentBotInfo,availableBots} = useBotStore(state => state);
+    const [pluginRange, setPluginRange] = useState('WEEK');
+    const [hotPlugins, setHotPlugins] = useState<RankingItem[]>([]);
+    const [groupRange, setGroupRange] = useState('WEEK');
+    const [activeGroups, setActiveGroups] = useState<RankingItem[]>([]);
+    const [friendAndGroupStats, setFriendAndGroupStats] = useState<FriendAndGroupStatsResponse>({groupCount: 0, friendCount: 0});
 
 
+    // 初始化加载数据
     useEffect(() => {
-        // 组件挂载时，初始化机器人数据
-        initBots();
-        const timer = setInterval(initBots, 30000);
-        return () => clearInterval(timer);
+        connectWebSocket(); // 连接 WS
+        fetchConfigs();     // 获取配置
+        fetchLogs(1);       // 获取第一页日志
+        fetchMessageStats(); // 获取消息统计
+        fetchFriendAndGroupStats(currentBotInfo?.botId); // 获取好友和群组统计数据
+        fetchInvokeStats();
+        // 初始加载图表数据
+        fetchHotPluginsData('WEEK');
+        fetchActiveGroupsData('WEEK');
     }, []);
 
-
-    // 新增：监听窗口大小变化，自动重置侧边栏状态
-    // 监听屏幕尺寸变化
     useEffect(() => {
-        const handleResize = () => {
-            if (typeof window === "undefined") {
+        fetchLogs(1)
+        fetchMessageStats();
+        fetchFriendAndGroupStats(currentBotInfo?.botId);
+    }, [currentBotInfo?.botId]);
+
+// 自动滚动到底部
+    useEffect(() => {
+        if (logsContainerRef.current) {
+            logsContainerRef.current.scrollTo({
+                top: logsContainerRef.current.scrollHeight,
+                behavior: "smooth"
+            });
+        }
+    }, [logs]);
+
+
+    // --- 监听 Range 变化 ---
+    useEffect(() => {
+        fetchHotPluginsData(pluginRange);
+    }, [pluginRange]);
+
+    useEffect(() => {
+        fetchActiveGroupsData(groupRange);
+    }, [groupRange]);
+
+    const fetchFriendAndGroupStats = async (botId?: number) => {
+        if (!botId) return;
+        try {
+            const res = await getFriendAndGroupStats(botId);
+            if (!res.success) {
+                toast.error(res.message);
                 return;
             }
-            // 当屏幕变窄（进入移动端模式 < 768px）时
-            if (window.innerWidth < 768) {
-                setIsSidebarOpen(false)
-                setIsSidebarCollapsed(false);
+            setFriendAndGroupStats(res.data || {groupCount: 0, friendCount: 0});
+        } catch (error) {
+            console.error("获取好友和群组统计数据失败:", error);
+            toast.error("获取好友和群组统计数据失败");
+        }
+    }
+
+    const fetchHotPluginsData = async (range: string) => {
+        try {
+            const res = await PluginApi.getHotPluginRanking(range);
+            if (res.data) {
+                setHotPlugins(res.data);
             } else {
-                setIsSidebarCollapsed(true)
+                setHotPlugins([]);
             }
-        };
-        window.addEventListener('resize', handleResize);
-        // 记得清理监听器
-        return () =>  window.removeEventListener('resize', handleResize);;
-    }, []);
-
-
-    // 菜单配置
-    const menuItems = [
-        {id: "dashboard", label: "仪表盘", icon: <LayoutDashboard size={20}/>},
-        {
-            id: "logs",
-            label: "日志查看",
-            icon: <Terminal size={20}/>,
-            hasSubmenu: true,
-            submenu: [
-                {id: "logs-live", label: "实时日志", icon: <Terminal size={16}/>},
-                {id: "logs-history", label: "历史日志", icon: <Clock size={16}/>},
-                {id: "logs-error", label: "错误日志", icon: <Bug size={16}/>}
-            ]
-        },
-        {id: "message", label: "好友与群组", icon: <MessageCircle size={20}/> ,disabled: true},
-        {id: "console", label: "酒狐控制台", icon: <Power size={20}/>},
-        {id: "schedule", label: "调度任务", icon: <Timer size={20}/>},
-        {id: "subscription", label: "订阅管理", icon: <Newspaper size={20}/> ,disabled: true},
-        {id: "plugins", label: "插件列表", icon: <Puzzle size={20}/>},
-        {id: "store", label: "插件商店", icon: <HomeIcon size={20}/>, disabled: true},
-        {id: "files", label: "文件管理", icon: <FolderOpen size={20}/>},
-        {id: "about", label: "关于酒狐", hidden: true}
-    ];
-
-    // 渲染内容区域
-    const renderContent = () => {
-        if (activeTab.startsWith("logs-")) {
-            const subType = activeTab.split("-")[1] as 'live' | 'history' | 'error';
-            return <LogView subType={subType}/>;
-        }
-
-        switch (activeTab) {
-            case "dashboard":
-                return <DashboardHome/>;
-            case "console":
-                return <Console/>;
-            case "message":
-                return <FriendsAndGroups/>;
-            case "subscription":
-                return <SubscriptionManager/>
-            case "schedule":
-                return <ScheduleManager/>
-            case "plugins":
-                return <PluginList/>;
-            case "files":
-                return <FileManager/>;
-            case "about":
-                return <About/>
-            default:
-                return <div className="flex items-center justify-center h-full text-gray-400">该页面无法显示</div>;
-        }
+        } catch (e) { console.error(e); }
     };
 
-    // 侧边栏内容组件 (提取出来以便复用)
-    // 侧边栏内容组件 (已移除底部设置按钮，改为在外部统一渲染)
-    const renderSidebarContent = () => (
-        <>
-            {/* Logo */}
-            <div
-                className={`mb-6 px-4 relative transition-all duration-300 flex items-center justify-center gap-2 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
+    const fetchActiveGroupsData = async (range: string) => {
+        try {
+            const res = await getActiveGroupStats(range);
+            if (res.data) {
+                setActiveGroups(res.data);
+            } else {
+                setActiveGroups([]);
+            }
+        } catch (e) { console.error(e); }
+    };
 
-                {/* 左侧：图片容器 */}
-                <div className="relative w-16 h-16 flex-shrink-0">
-                    <Image
-                        src="/logo_2.png"
-                        alt="WineFox Bot Logo"
-                        className="object-contain -rotate-4"
-                    />
-                </div>
+    const getRankingOption = (title: string, data: RankingItem[], colorStart: string, colorEnd: string) => {
+        return {
+            title: {
+                text: title,
+                textStyle: { color: '#ec4899', fontSize: 18, fontWeight: 'bold' }, // 调整标题颜色
+                top: 0,
+                left: 0
+            },
+            // 留出空间给右上角的按钮
+            grid: { top: '25%', bottom: '15%', left: '12%', right: '5%' },
+            tooltip: { trigger: 'axis' },
+            xAxis: {
+                type: 'category',
+                data: data.map(item => item.name),
+                axisLine: { lineStyle: { color: '#e5e7eb' } },
+                axisLabel: {
+                    color: '#4b5563',
+                    fontSize: 10,
+                    interval: 0,
+                    rotate: 20 // 稍微倾斜
+                },
+                axisTick: { show: false }
+            },
+            yAxis: {
+                type: 'value',
+                splitLine: { lineStyle: { type: 'dashed', color: '#f3f4f6' } },
+                axisLabel: { color: '#6b7280' }
+            },
+            series: [{
+                data: data.map(item => item.value),
+                type: 'bar',
+                barWidth: '40%',
+                label: {
+                    show: true,
+                    position: 'top',
+                    color: '#374151',
+                    fontWeight: 'bold'
+                },
+                itemStyle: {
+                    color: {
+                        type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            { offset: 0, color: colorStart },
+                            { offset: 1, color: colorEnd }
+                        ]
+                    },
+                    borderRadius: [6, 6, 0, 0]
+                }
+            }]
+        };
+    };
 
-                {/* 右侧：文字容器 - 作为一个整体列 */}
-                <div className="relative flex flex-col justify-center">
-                    <h1 className="text-xl font-black text-pink-300 transform -rotate-6 select-none leading-none"
-                        style={{textShadow: "1px 1px 0px #fff"}}>WineFox</h1>
-                    <h1 className="text-2xl font-black text-pink-400 transform rotate-3 mt-1 ml-5 select-none leading-none"
-                        style={{textShadow: "1px 1px 0px #fff"}}>Bot</h1>
-                </div>
-            </div>
-
-
-            {/* Logo Placeholder for Collapsed Mode */}
-            {isSidebarCollapsed && (
-                <div className="mb-6 mt-4 flex justify-center">
-                    <div
-                        className="w-10 h-10 bg-pink-400 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md">
-                        W
-                    </div>
-                </div>
-            )}
-
-            {/* 菜单列表 */}
-            <ScrollShadow className="w-full flex-1">
-                <nav className="w-full flex flex-col gap-2 pb-4">
-                    {menuItems.map((item) => {
-                        const isActive = activeTab === item.id || (item.hasSubmenu && activeTab.startsWith(item.id + "-"));
-                        const isSubmenuOpen = item.id === "logs" && logsOpen;
-
-                        if (item.hidden) { // 隐藏项不渲染
-                            return null;
-                        }
-
-                        return (
-                            <div key={item.id} className="w-full px-2">
-                                <div className="relative">
-                                    {isActive && !item.hasSubmenu && !isSidebarCollapsed && (
-                                        <div className="absolute left-0 top-1 bottom-1 w-1 bg-pink-400 rounded-r-md"/>
-                                    )}
-
-                                    <Button
-                                        isDisabled={item.disabled}
-                                        isIconOnly={isSidebarCollapsed}
-                                        className={`w-full ${isSidebarCollapsed ? 'justify-center aspect-square px-0' : 'justify-start px-3'} h-12 text-md font-bold transition-all ${
-                                            isActive && !item.hasSubmenu
-                                                ? "bg-pink-500/10 text-pink-600"
-                                                : item.disabled
-                                                    ? "bg-transparent text-gray-300 cursor-not-allowed"
-                                                    : "bg-transparent text-gray-500 hover:text-pink-400 hover:bg-white/30"
-                                        }`}
-                                        variant="light"
-                                        onPress={() => {
-                                            if (item.hasSubmenu) {
-                                                if (isSidebarCollapsed) {
-                                                    setIsSidebarCollapsed(false);
-                                                    setLogsOpen(true);
-                                                } else {
-                                                    setLogsOpen(!logsOpen);
-                                                }
-                                            } else {
-                                                setActiveTab(item.id);
-                                                typeof window !== "undefined" && window.innerWidth < 768 && setIsSidebarOpen(false);
-                                            }
-                                        }}
-                                        title={isSidebarCollapsed ? item.label : undefined}
-                                    >
-                                        <div
-                                            className={`flex items-center w-full gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                                            <span className="flex-shrink-0">{item.icon}</span>
-                                            {!isSidebarCollapsed && (
-                                                <>
-                                                    <span
-                                                        className="whitespace-nowrap flex-1 text-left">{item.label}</span>
-                                                    {item.hasSubmenu && (
-                                                        <span className="text-gray-400">
-                                                            {isSubmenuOpen ? <ChevronDown size={14}/> :
-                                                                <ChevronRight size={14}/>}
-                                                        </span>
-                                                    )}
-                                                </>
-                                            )}
-                                        </div>
-                                    </Button>
-                                </div>
-                                {/* 子菜单渲染略 (保持原样即可，为了节省篇幅这里省略，请保留你原代码中的子菜单部分) */}
-                                {item.hasSubmenu && isSubmenuOpen && !isSidebarCollapsed && (
-                                    <div className="ml-4 mt-1 space-y-1 border-l-2 border-pink-100 pl-2">
-                                        {item.submenu?.map((sub) => {
-                                            const isSubActive = activeTab === sub.id;
-                                            return (
-                                                <Button
-                                                    key={sub.id}
-                                                    size="sm"
-                                                    className={`w-full justify-start h-9 text-sm font-medium transition-all ${
-                                                        isSubActive
-                                                            ? "text-pink-500 bg-pink-50/50"
-                                                            : "bg-transparent text-gray-400 hover:text-pink-400"
-                                                    }`}
-                                                    variant="light"
-                                                    onPress={() => {
-                                                        setActiveTab(sub.id);
-                                                        if (typeof window !== "undefined" && window.innerWidth < 768) setIsSidebarOpen(false);
-                                                    }}
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        {sub.icon}
-                                                        <span>{sub.label}</span>
-                                                    </div>
-                                                </Button>
-                                            )
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        )
-                    })}
-                </nav>
-            </ScrollShadow>
-        </>
-    );
-
-
-    return (
-        <AuthGuard>
-            <ApiSettingsModal isOpen={isSettingsOpen} onOpenChange={onSettingsOpenChange}/>
-
-            <div className="flex w-full h-screen bg-[#fff0f5] overflow-hidden relative">
-
-                {/* --- 移动端侧边栏遮罩 --- */}
-                {isSidebarOpen && (
-                    <div
-                        className="fixed inset-0 bg-black/20 z-40 md:hidden backdrop-blur-sm"
-                        onClick={() => setIsSidebarOpen(false)}
-                    />
-                )}
-
-                {/* --- 左侧侧边栏 (Responsive & Collapsible) --- */}
-                <aside
+    // --- 筛选按钮渲染组件 ---
+    const renderFilter = (currentKey: string, setKey: (k: string) => void) => (
+        <div className="flex gap-1 absolute top-4 right-4 z-10">
+            {TIME_RANGES.map(t => (
+                <button
+                    key={t.key}
+                    onClick={() => setKey(t.key)}
                     className={`
-                        fixed md:relative z-[100] h-full
-                        bg-white/40 border-r border-white/50 backdrop-blur-md flex flex-col py-4
-                        transition-transform duration-300 ease-in-out
-                        ${isSidebarCollapsed ? 'w-[80px]' : 'w-[240px]'}
-                        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-                        md:translate-x-0
+                        text-[10px] px-2 py-0.5 rounded-full transition-all
+                        ${currentKey === t.key
+                        ? 'bg-pink-400 text-white shadow-md shadow-pink-200 font-bold'
+                        : 'bg-pink-50 text-pink-300 hover:bg-pink-100'}
                     `}
                 >
-                    {/* 移动端右上角关闭按钮 */}
-                    <div className="md:hidden absolute top-4 right-4 z-50">
-                        <Button
-                            isIconOnly
-                            variant="light"
-                            size="sm"
-                            onPress={() => setIsSidebarOpen(false)}
-                            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100/50"
-                        >
-                            <X size={22}/>
-                        </Button>
-                    </div>
+                    {t.label}
+                </button>
+            ))}
+        </div>
+    );
 
-                    {/* PC端悬浮折叠按钮 */}
-                    <div className="hidden md:flex absolute -right-3 top-10 z-50">
-                        <button
-                            className="bg-white rounded-full p-1 shadow-md text-pink-400 hover:text-pink-600 border border-pink-100 transition-transform hover:scale-110"
-                            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                        >
-                            {isSidebarCollapsed ? <PanelLeftOpen size={14}/> : <PanelLeftClose size={14}/>}
-                        </button>
-                    </div>
+    return (
+        <div className="h-full w-full overflow-y-auto p-2">
+            {/* 栅格布局：移动端1列，PC端3列 */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-10">
 
-                    {/* 菜单内容 */}
-                    {renderSidebarContent()}
-
-                    {/* --- 底部统一控制区 (设置 + 移动端折叠) --- */}
-                    {/* pb-20 是为了避开左下角的红色调试球 */}
-                    <div
-                        className={`mt-auto w-full flex flex-col gap-2 px-2 pt-4 border-t border-white/50 md:pb-0 pb-20 ${isSidebarCollapsed ? 'items-center' : ''}`}>
-
-                        {/* 设置/关于按钮 */}
-                        <div
-                            onClick={() => setActiveTab("about")}
-                            className={`flex items-center gap-3 px-3 py-2 cursor-pointer text-gray-400 hover:text-pink-400 transition-colors rounded-lg hover:bg-white/30 ${isSidebarCollapsed ? 'justify-center w-10 h-10 px-0' : ''}`}>
-                            <Bot size={20}/>
-                            {!isSidebarCollapsed && <span className="font-bold">关于酒狐</span>}
-                        </div>
-
-                        {/* 移动端折叠按钮 (仅移动端显示) - 优化后的样式 */}
-                        <div className="md:hidden w-full flex justify-center mt-2">
-                            <Button
-                                variant="light"
-                                size="sm"
-                                className={`
-                                    group  /* 启用 group-hover 效果 */
-                                    text-gray-500 hover:text-pink-500 /* 默认灰色，悬停/点击变粉 */
-                                    bg-transparent hover:bg-white/40 /* 默认透明，悬停微白 */
-                                    transition-all duration-300
-                                    ${isSidebarCollapsed ? 'min-w-0 px-2 aspect-square' : 'w-full justify-start px-3'}
-                                `}
-                                onPress={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                            >
-                                {isSidebarCollapsed ? (
-                                    <div className="w-full flex justify-center">
-                                        <PanelLeftOpen size={20}
-                                                       className="text-pink-400 group-hover:scale-110 transition-transform"/>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center w-full gap-3">
-                                        <PanelLeftClose size={18} className="text-pink-400 group-hover:text-pink-500"/>
-                                        <span className="font-bold text-sm">折叠菜单</span>
-                                    </div>
-                                )}
-                            </Button>
-                        </div>
-                    </div>
-                </aside>
-
-
-                {/* --- 右侧内容 --- */}
-                <main className="flex-1 overflow-hidden relative z-10 p-0 flex flex-col w-full">
-                    {/* 顶部栏 */}
-                    <header
-                        className="flex justify-between items-center h-16 px-4 md:px-8 flex-none bg-white/30 backdrop-blur-sm mx-2 md:mx-6 mt-2 md:mt-4 rounded-2xl shadow-sm">
-
-                        <div className="flex items-center gap-2">
-                            {/* 移动端汉堡菜单 */}
-                            <Button
-                                isIconOnly
-                                variant="light"
-                                className="md:hidden -ml-2 text-gray-600"
-                                onPress={() => setIsSidebarOpen(true)}
-                            >
-                                <Menu size={24}/>
-                            </Button>
-
-                            <div className="hidden md:flex gap-2">
-                                <span className="font-bold text-gray-500">控制台</span>
-                                <span className="text-gray-300">/</span>
-                                <span
-                                    className="font-bold text-pink-500">{menuItems.find(i => i.id === activeTab.split('-')[0])?.label || '仪表盘'}</span>
+                {/* --- 左侧栏 (占3份) --- */}
+                <div className="lg:col-span-3 space-y-6">
+                    {/* 在线酒狐卡片 */}
+                    <Card className="shadow-sm border-none bg-white/80 backdrop-blur-sm">
+                        <CardBody className="p-6 flex flex-col items-center gap-4">
+                            <div className="w-full flex items-center gap-2 mb-2">
+                                <div className="w-1 h-6 bg-pink-400 rounded-full"></div>
+                                <h3 className="text-xl font-bold text-pink-500">在线酒狐 ({availableBots.length})</h3>
                             </div>
 
-                            {/* 移动端只显示当前标题 */}
-                            <span
-                                className="md:hidden font-bold text-pink-500 ml-1">{menuItems.find(i => i.id === activeTab.split('-')[0])?.label || '仪表盘'}</span>
-                        </div>
+                            <div
+                                className="flex items-center gap-4 w-full bg-pink-50/50 p-4 rounded-2xl border border-pink-100">
+                                <Avatar src={currentBotInfo?.avatarUrl}
+                                        classNames={{img: "opacity-100"}}
+                                        className="w-20 h-20 text-large border-2 border-pink-200" isBordered
+                                        imgProps={{referrerPolicy: "no-referrer"}}/>
+                                <div className="flex flex-col">
+                                    <span className="text-xl font-black text-gray-700">| {currentBotInfo?.nickname || "我是谁？"}</span>
+                                    <span className="text-xs text-pink-400 font-bold mt-1">ID: {currentBotInfo?.botId || "114514"}</span>
+                                </div>
+                            </div>
 
-                        <div className="flex items-center gap-2 md:gap-3">
-                            <Button
-                                isIconOnly
-                                size="sm"
-                                variant="light"
-                                className="text-pink-400 hover:bg-pink-50"
-                                onPress={onSettingsOpen}
-                                title="API 地址设置"
-                            >
-                                <Globe size={20}/>
-                            </Button>
+                            <div className="grid grid-cols-2 gap-3 w-full">
+                                <div
+                                    className="bg-pink-50 text-pink-500 py-2 rounded-xl flex justify-center items-center gap-2 font-bold text-sm">
+                                    <User size={16} fill="currentColor"/> 好友 {friendAndGroupStats.friendCount}
+                                </div>
+                                <div
+                                    className="bg-emerald-50 text-emerald-500 py-2 rounded-xl flex justify-center items-center gap-2 font-bold text-sm">
+                                    <Users size={16} fill="currentColor"/> 群组 {friendAndGroupStats.groupCount}
+                                </div>
+                            </div>
 
-                            <Button isIconOnly size="sm"
-                                    className="bg-pink-100 text-pink-400 rounded-full hidden sm:flex"
-                                    onPress={() => initBots()}
-                            >
-                                <RefreshCw size={14}/>
-                            </Button>
+                            <div className="grid grid-cols-2 gap-3 w-full mt-2">
+                                <div className="flex flex-row justify-center items-center bg-gray-50 p-3 rounded-xl">
+                                    <Repeat className="text-pink-300 mb-0.5" size={20}/>
+                                    <span className="text-xs text-gray-400 ml-1">今日调用</span>
+                                    <span className="text-pink-400 font-bold ml-1 mb-0.5">{invokeStats.day}</span>
+                                </div>
+                                <div className="flex flex-row justify-center items-center bg-gray-50 p-3 rounded-xl">
+                                    <MessageSquare className="text-pink-300 mb-0.5" size={20}/>
+                                    <span className="text-xs text-gray-400 ml-1">今日消息</span>
+                                    <span className="text-pink-400 font-bold ml-1 mb-0.5">{messageStats.today}</span>
+                                </div>
+                            </div>
+                        </CardBody>
+                    </Card>
 
-                            {/* --- 修改开始：账号切换下拉菜单 --- */}
-                            <Dropdown placement="bottom-end">
-                                <DropdownTrigger>
-                                    <div className="flex items-center gap-2 cursor-pointer p-1 rounded-xl hover:bg-gray-100 transition-colors">
-                                        <span className="text-sm font-bold text-gray-600 hidden sm:block ml-1">切换账号</span>
-
-                                        <Avatar
-                                            src={currentBotInfo?.avatarUrl}
-                                            classNames={{img: "opacity-100"}}
-                                            imgProps={{referrerPolicy: "no-referrer"}}
-                                            size="sm"
-                                            className="border border-pink-200"
-                                        />
-
-                                        <Button size="sm" variant="light"
-                                                className="text-gray-600 font-bold bg-transparent min-w-0 px-1 md:px-2 data-[hover=true]:bg-transparent">
-                                            <span className="hidden sm:inline">{currentBotInfo?.nickname || `Bot ${currentBotId || ''}`}</span>
-                                            <span className="text-xs">▼</span>
-                                        </Button>
-                                    </div>
-                                </DropdownTrigger>
-
-                                <DropdownMenu
-                                    aria-label="Bot Actions"
-                                    variant="flat"
-                                    disallowEmptySelection
-                                    selectionMode="single"
-                                    selectedKeys={currentBotId ? new Set([String(currentBotId)]) : new Set()}
-                                    onAction={(key) => switchBot(Number(key))}
-                                >
-                                    {/* 遍历可用机器人列表 */}
-                                    {availableBots.length > 0 ? (
-                                        availableBots.map((botId) => (
-                                            <DropdownItem key={botId} textValue={`Bot ${botId}`}>
-                                                <div className="flex flex-col">
-                                                    <span className="text-small font-bold">机器人 ID: {botId}</span>
-                                                    {String(botId) === String(currentBotId) && (
-                                                        <span className="text-tiny text-pink-500">当前在线</span>
-                                                    )}
-                                                </div>
-                                            </DropdownItem>
-                                        ))
+                    {/* 连接日志 */}
+                    <Card className="shadow-sm border-none bg-white/80 backdrop-blur-sm">
+                        <CardBody className="p-5">
+                            <h3 className="text-lg font-bold text-pink-400 mb-4 text-center border-b-2 border-pink-50 pb-2 border-dashed">连接日志</h3>
+                            <div className="space-y-3">
+                                <div className="grid grid-cols-3 text-xs font-bold text-gray-500 text-center mb-2">
+                                    <span>日期</span>
+                                    <span>账号</span>
+                                    <span>类型</span>
+                                </div>
+                                {/* 数据列表 */}
+                                <div className="flex-1 space-y-2">
+                                    {dbLogs.length === 0 && !isLoadingLogs ? (
+                                        <div className="text-center text-gray-300 text-xs py-8">暂无数据...</div>
                                     ) : (
-                                        <DropdownItem key="no-bots" isReadOnly>
-                                            暂无在线机器人
-                                        </DropdownItem>
+                                        dbLogs.map((log) => {
+                                            const { dateStr, timeStr } = formatLogTime(log.createdAt);
+                                            return (
+                                                <div key={log.id} className="grid grid-cols-3 text-xs text-gray-400 text-center items-center bg-pink-50/30 py-2 rounded-lg hover:bg-pink-50 transition-colors">
+                                                    <span className="text-pink-300 leading-tight">
+                                                        {dateStr}<br/>
+                                                        <span className="text-[10px] opacity-70 font-mono">{timeStr}</span>
+                                                    </span>
+                                                    <span className="text-pink-400 break-all px-1 font-mono">
+                                                        {log.botId}
+                                                    </span>
+                                                    <span>
+                                                        <Chip size="sm" color={getEventColor(log.eventType)} className="text-white h-5 text-[10px] shadow-sm">
+                                                            {getEventLabel(log.eventType)}
+                                                        </Chip>
+                                                    </span>
+                                                </div>
+                                            )
+                                        })
                                     )}
-                                </DropdownMenu>
-                            </Dropdown>
-                            {/* --- 修改结束 --- */}
-                        </div>
+                                </div>
+                                {/* 分页控制 */}
+                                <div className="flex justify-center gap-2 mt-auto pt-2 select-none">
+                                    <button
+                                        disabled={logPage.current <= 1 || isLoadingLogs}
+                                        onClick={() => fetchLogs(logPage.current - 1)}
+                                        className="w-6 h-6 rounded flex items-center justify-center text-xs transition-colors bg-pink-50 text-pink-400 hover:bg-pink-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        &lt;
+                                    </button>
 
-                    </header>
+                                    <div className="h-6 px-2 bg-pink-400 rounded flex items-center justify-center text-xs text-white font-bold shadow-md shadow-pink-200">
+                                        {logPage.current} / {logPage.pages || 1}
+                                    </div>
 
-                    {/* 主视图渲染容器 */}
-                    <div className="flex-1 overflow-hidden pt-4 pb-2 px-2 md:px-6">
-                        {renderContent()}
+                                    <button
+                                        disabled={logPage.current >= logPage.pages || isLoadingLogs}
+                                        onClick={() => fetchLogs(logPage.current + 1)}
+                                        className="w-6 h-6 rounded flex items-center justify-center text-xs transition-colors bg-pink-50 text-pink-400 hover:bg-pink-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        &gt;
+                                    </button>
+                                </div>
+                            </div>
+                        </CardBody>
+                    </Card>
+                </div>
+
+                {/* --- 中间栏 (占5份) --- */}
+                <div className="lg:col-span-5 space-y-6">
+                    {/* Welcome Banner */}
+                    <div className="bg-white p-6 rounded-3xl shadow-sm text-center space-y-2 border border-pink-50">
+                        <h1 className="text-2xl font-black text-pink-400">(≥ ▽ ≤)/ Hello 欢迎来到酒狐的小房间!</h1>
+                        <p className="text-gray-400 text-sm">这是一场传奇的冒险旅途... ☆⌒(*＾-゜)v</p>
                     </div>
-                </main>
+
+                    {/* 系统状态 Grid */}
+                    <div className="grid grid-cols-3 gap-4">
+                        {[
+                            {
+                                icon: <Server size={20}/>,
+                                label: "CPU",
+                                val: status.cpuUsage,
+                                color: "text-red-400"
+                            },
+                            {
+                                icon: <Activity size={20}/>,
+                                label: "MEMORY",
+                                val: status.memoryUsage,
+                                color: "text-purple-400"
+                            },
+                            {
+                                icon: <Database size={20}/>,
+                                label: "DISK",
+                                val: status.diskUsage,
+                                color: "text-orange-400"
+                            },
+                        ].map((item, idx) => (
+                            <Card key={idx} className="shadow-sm border-none">
+                                <CardBody className="flex flex-col items-center justify-center py-6 gap-2">
+                                    <div className={`flex items-center gap-2 text-xs font-bold ${item.color}`}>
+                                        {item.icon} {item.label}
+                                    </div>
+                                    <span className="text-2xl font-black text-gray-600">{item.val}</span>
+                                </CardBody>
+                            </Card>
+                        ))}
+                    </div>
+
+                    {/* 统计数据 Grid */}
+                    <div className="grid grid-cols-4 gap-3">
+                        {[
+                            {
+                                label: "消息总数",
+                                val: messageStats.total.toString(),
+                                color: "text-pink-400"
+                            },
+                            {
+                                label: "今日消息",
+                                val: messageStats.today.toString(),
+                                color: "text-gray-400"
+                            },
+                            {
+                                label: "调用总数",
+                                val: invokeStats.total.toString(),
+                                color: "text-pink-400"
+                            },
+                            {
+                                label: "今日调用",
+                                val: invokeStats.day.toString(),
+                                color: "text-gray-400"
+                            },
+                        ].map((item, idx) => (
+                            <Card key={idx} className="shadow-sm border-none bg-white">
+                                <CardBody className="flex flex-col items-center justify-center py-4">
+                                    <span className="text-xs text-gray-400 font-medium mb-1">{item.label}</span>
+                                    <span className={`text-xl font-black ${item.color}`}>{item.val}</span>
+                                </CardBody>
+                            </Card>
+                        ))}
+                    </div>
+
+                    {/* 查看更多 Bar */}
+                    {/*<div*/}
+                    {/*    className="w-full bg-white py-3 rounded-xl flex justify-center items-center text-pink-400 text-sm font-bold cursor-pointer hover:bg-pink-50 transition-colors shadow-sm">*/}
+                    {/*    (๑•̀ㅂ•́)و✧ 查看更多... &gt;*/}
+                    {/*</div>*/}
+
+                    {/* 后台日志 */}
+                    <Card className="shadow-sm border-none h-[400px] rounded-xl">
+                        <CardBody className="p-5 font-mono text-xs bg-white h-full flex flex-col">
+                            <div className="flex justify-between items-center mb-4 flex-none">
+                                <h3 className="text-lg font-bold text-pink-500 flex items-center gap-2">
+                                    (●'◡'●) 后台日志
+                                </h3>
+                                <span
+                                    className="text-gray-300 text-[10px] hidden sm:block">虽然不知道为什么，但是视力+1</span>
+                            </div>
+
+                            {/* 日志容器 */}
+                            <div ref={logsContainerRef}  className="flex-1 overflow-y-auto space-y-1.5 pr-2 custom-scrollbar scroll-smooth">
+                                {/* 注入自定义滚动条样式，只在这个组件内生效 */}
+                                <style jsx>{`
+                                    .custom-scrollbar::-webkit-scrollbar {
+                                        width: 4px; /* 极细滚动条 */
+                                    }
+
+                                    .custom-scrollbar::-webkit-scrollbar-track {
+                                        background: transparent; /* 轨道透明，看不见 */
+                                    }
+
+                                    .custom-scrollbar::-webkit-scrollbar-thumb {
+                                        background-color: transparent; /* 默认透明 */
+                                        border-radius: 20px;
+                                    }
+
+                                    /* 只有当鼠标悬停在卡片上时，滚动条才变色可见 */
+                                    .group:hover .custom-scrollbar::-webkit-scrollbar-thumb {
+                                        background-color: #fbcfe8; /* 浅粉色 */
+                                    }
+
+                                    .group:hover .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                                        background-color: #f472b6; /* 深粉色 */
+                                    }
+                                `}</style>
+
+                                {logs.length === 0 ? (
+                                    <div className="h-full flex flex-col items-center justify-center select-none">
+                                        <div
+                                            className="flex items-baseline text-gray-300 font-bold text-2xl opacity-30">
+                                            <span>Waiting</span>
+                                            <span className="animate-bounce [animation-delay:-0.3s] ml-1">.</span>
+                                            <span className="animate-bounce [animation-delay:-0.15s]">.</span>
+                                            <span className="animate-bounce">.</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {logs.slice(-50).map((log, i) => (
+                                            <LogItem key={i} log={log} variant="compact"/>
+                                        ))}
+                                    </>
+                                )}
+                            </div>
+                        </CardBody>
+                    </Card>
+                </div>
+
+                {/* --- 右侧栏 (占4份) --- */}
+                <div className="lg:col-span-4 space-y-6">
+                    {/* WineFoxBot 配置 */}
+                    <Card className="shadow-sm border-none">
+                        <CardBody className="p-5">
+                            <h3 className="text-lg font-bold text-pink-400 mb-4">WineFoxBot配置</h3>
+                            <div className="grid grid-cols-2 gap-2">
+                                {configs.length === 0 ? (
+                                    <div className="col-span-2 text-center text-gray-300 text-xs py-4 animate-pulse">
+                                        暂无配置...
+                                    </div>
+                                ) : (
+                                    configs.map((conf, idx) => (
+                                        <div
+                                            key={idx}
+                                            className={`bg-pink-50/50 p-2 rounded border border-pink-100/50 flex flex-col justify-center
+                                                ${/* 特殊处理：如果值很长或者 order 很大，占满一行 */
+                                                conf.value.length > 20 || conf.order >= 99 ? 'col-span-2' : ''}
+                                            `}
+                                            title={conf.description}
+                                        >
+                                            <div className="text-xs font-bold text-gray-600 truncate w-full" title={conf.value}>
+                                                {conf.value}
+                                            </div>
+                                            <div className="text-[10px] text-pink-300 font-bold mt-0.5">
+                                                {conf.label}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </CardBody>
+                    </Card>
+
+                    {/* 活跃群组 Chart */}
+                    <Card className="shadow-sm border-none relative overflow-visible">
+                        <CardBody className="p-4">
+                            {/* 筛选按钮 */}
+                            {renderFilter(groupRange, setGroupRange)}
+
+                            <ReactECharts
+                                option={getRankingOption(
+                                    '活跃群组',
+                                    activeGroups, // 直接传入 RankingItem[]
+                                    ' #ec4899',
+                                    '#fbcfe8'
+                                )}
+                                style={{height: '220px'}}
+                            />
+                        </CardBody>
+                    </Card>
+
+                    {/* 热门插件 Chart (真实数据) */}
+                    <Card className="shadow-sm border-none relative overflow-visible">
+                        <CardBody className="p-4">
+                            {/* 筛选按钮 */}
+                            {renderFilter(pluginRange, setPluginRange)}
+                            <ReactECharts
+                                option={getRankingOption(
+                                    '热门插件',
+                                    hotPlugins, // 直接传入 RankingItem[]
+                                    ' #ec4899',
+                                    '#fbcfe8'
+                                )}
+                                style={{height: '220px'}}
+                            />
+                        </CardBody>
+                    </Card>
+                </div>
+
             </div>
-        </AuthGuard>
+        </div>
     );
 }

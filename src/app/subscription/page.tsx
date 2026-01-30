@@ -28,7 +28,7 @@ const mockSubscribers = [
     { id: 4, userId: "5566778", nickname: "管理员", groupName: "摸鱼群", groupId: "789789", avatar: "https://i.pravatar.cc/150?u=a04258114e29026708c" },
 ];
 
-export default function SubscriptionManager() {
+export default function Page() {
     const [selectedType, setSelectedType] = useState("pixiv_rank");
     const [searchQuery, setSearchQuery] = useState("");
 

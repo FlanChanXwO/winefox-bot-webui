@@ -2,10 +2,9 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from "@nextui-org/react";
-import { Trash2, Pause, Play, Download, Search } from 'lucide-react';
+import { Trash2, Pause, Play} from 'lucide-react';
 import { useLogStore, LogEntry } from '@/store/useLogStore';
-import { formatTime } from '@/utils/time';
-import {LogItem} from "@/app/(home)/components/Log/LogItem";
+import {LogItem} from "@/components/Log/LogItem";
 
 interface LogViewerProps {
     mode: 'live' | 'static';

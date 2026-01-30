@@ -7,10 +7,10 @@ import {
 } from '@nextui-org/react';
 import {Lock, User, LogIn, Eye, EyeOff, Globe, KeyRound} from 'lucide-react';
 import {motion} from 'framer-motion';
-import ApiSettingsModal from "@/components/ApiSettingsModal";
 import { useRouter } from 'next/navigation';
 import { login,resetPassword  } from '@/api/auth';
 import {toast} from 'sonner';
+import ApiSettingsModal from "@/components/Common/ApiSettingsModal";
 
 export default function Login() {
     // 登录状态

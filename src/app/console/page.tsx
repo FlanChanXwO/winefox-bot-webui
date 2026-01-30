@@ -89,7 +89,7 @@ const RingStatCard = ({ title, subTitle, color, data }: { title: React.ReactNode
 );
 
 
-export default function Console() {
+export default function Page() {
     // 3. 获取 Store 数据
     const currentBotInfo = useBotStore(state => state.currentBotInfo);
     const {

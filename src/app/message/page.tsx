@@ -56,7 +56,7 @@ const chartData = [
     {name: 'E', value: 62},
 ];
 
-export default function FriendsAndGroups() {
+export default function Page() {
     const [activeTab, setActiveTab] = useState<'friends' | 'groups'>('groups');
     const [selectedId, setSelectedId] = useState('1001918625');
 

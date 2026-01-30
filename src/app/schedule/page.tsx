@@ -25,9 +25,9 @@ import {
     TargetType,
     TaskSaveRequest
 } from "@/api/schedule";
-import CronGeneratorPopup from "@/app/(home)/components/ScheduleManager/components/CronGeneratorPopup";
 import friendGroupApi from "@/api/friendGroup";
 import userApi from "@/api/user";
+import CronGeneratorPopup from "@/app/schedule/components/CronGeneratorPopup";
 
 // 映射前端 Tab 到后端枚举
 const TAB_MAP: Record<string, TargetType> = {
@@ -37,7 +37,7 @@ const TAB_MAP: Record<string, TargetType> = {
 
 
 
-export default function Index() {
+export default function Page() {
     // --- Store & State ---
     const { currentBotId } = useBotStore();
     const [activeTab, setActiveTab] = useState<string>("group");
