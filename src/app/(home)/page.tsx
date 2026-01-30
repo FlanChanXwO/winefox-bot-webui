@@ -45,7 +45,7 @@ const TIME_RANGES = [
 ];
 
 export default function DashboardHome() {
-    const {logs, connectWebSocket} = useLogStore();
+    const {logs} = useLogStore();
     const logsContainerRef = useRef<HTMLDivElement>(null);
     // 使用 Hook 获取实时数据，自动轮询
     const {status} = useSystemStatus();
@@ -59,7 +59,6 @@ export default function DashboardHome() {
         fetchConfigs,
         fetchLogs,
         fetchInvokeStats,
-        fetchActiveGroups,
         fetchMessageStats,
     } = useDashboardStore();
     const {currentBotInfo,availableBots} = useBotStore(state => state);
@@ -72,7 +71,6 @@ export default function DashboardHome() {
 
     // 初始化加载数据
     useEffect(() => {
-        connectWebSocket(); // 连接 WS
         fetchConfigs();     // 获取配置
         fetchLogs(1);       // 获取第一页日志
         fetchMessageStats(); // 获取消息统计

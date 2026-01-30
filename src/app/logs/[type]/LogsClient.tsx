@@ -51,7 +51,6 @@ async function fetchHistoryLogs(date: DateValue, type: 'history' | 'error'): Pro
 
 // 导出组件名字稍微改一下，叫 LogsClient
 export default function LogsClient() {
-    // ... 这里保留原来的所有组件逻辑 ...
     const {isConnected } = useLogStore();
     const [selectedDate, setSelectedDate] = useState(today(getLocalTimeZone()));
     const [availableDates, setAvailableDates] = useState<Set<string>>(new Set());

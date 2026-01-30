@@ -9,6 +9,7 @@ import Sidebar from "@/components/Layout/Sidebar";
 import Header from "@/components/Layout/Header";
 import {Toaster} from "sonner";
 import {usePathname} from "next/navigation";
+import {useLogStore} from "@/store/useLogStore";
 
 export default function MainLayoutWrapper({children}: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -16,6 +17,7 @@ export default function MainLayoutWrapper({children}: { children: React.ReactNod
 
     const {isOpen: isSettingsOpen, onOpen: onSettingsOpen, onOpenChange: onSettingsOpenChange} = useDisclosure();
     const {initBots} = useBotStore(state => state);
+    const {connectWebSocket} = useLogStore();
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -25,6 +27,7 @@ export default function MainLayoutWrapper({children}: { children: React.ReactNod
     useEffect(() => {
         if (!isLoginPage) {
             initBots();
+            connectWebSocket();
             const timer = setInterval(initBots, 30000);
             return () => clearInterval(timer);
         }
