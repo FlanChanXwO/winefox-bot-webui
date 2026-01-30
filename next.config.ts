@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   // 开启静态导出模式
   output: 'export',
+  trailingSlash: true,
   // 关闭图片优化
   images: {
     unoptimized: true,
