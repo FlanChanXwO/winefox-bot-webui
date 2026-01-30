@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { usePathname } from "next/navigation";
+import {usePathname, useRouter} from "next/navigation";
 import {
     Button,
     ScrollShadow,
@@ -31,6 +31,7 @@ export default function Sidebar({
                                     setIsSidebarCollapsed,
                                     setActiveTab
                                 }: SidebarProps) {
+    const router = useRouter()
     const pathname = usePathname();
     const [logsOpen, setLogsOpen] = useState(false);
 
@@ -38,6 +39,7 @@ export default function Sidebar({
     const activeTabId = menuItems.find(item =>
         item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
     )?.id || "dashboard";
+
 
     return (
         <aside
@@ -189,7 +191,7 @@ export default function Sidebar({
             {/* 底部功能区 */}
             <div className={`mt-auto w-full flex flex-col gap-2 px-2 pt-4 border-t border-white/50 md:pb-0 pb-20 ${isSidebarCollapsed ? 'items-center' : ''}`}>
                 <div
-                    onClick={() => setActiveTab("about")}
+                    onClick={() => router.push("/about")}
                     className={`flex items-center gap-3 px-3 py-2 cursor-pointer text-gray-400 hover:text-pink-400 transition-colors rounded-lg hover:bg-white/30 ${isSidebarCollapsed ? 'justify-center w-10 h-10 px-0' : ''}`}>
                     <Bot size={20} />
                     {!isSidebarCollapsed && <span className="font-bold">关于酒狐</span>}

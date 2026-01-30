@@ -1,10 +1,10 @@
 import React from "react";
 import LogsClient from "./LogsClient";
 
-export function generateStaticParams() {
+export async function generateStaticParams() {
     return [
         { type: 'live' },
-        { type: 'history' },
+        { type: 'history' }, // 如果你有其他类型，都列在这里
         { type: 'error' },
     ];
 }
