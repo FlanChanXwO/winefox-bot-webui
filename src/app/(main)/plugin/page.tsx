@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Card, CardBody, Chip, Button, Spinner, useDisclosure } from "@nextui-org/react";
-import { Power, Settings, Trash2 } from "lucide-react";
-import pluginApi, { PluginListItem } from "@/api/plugin";
-import { toast } from "sonner";
-import PluginConfigModal from "@/app/plugin/components/PluginConfigModal";
+import React, {useEffect, useState} from "react";
+import {Button, Card, CardBody, Chip, Spinner, useDisclosure} from "@nextui-org/react";
+import {Power, Settings, Trash2} from "lucide-react";
+import pluginApi, {PluginListItem} from "@/api/plugin";
+import {toast} from "sonner";
+import PluginConfigModal from "./components/PluginConfigModal";
 
 export default function Page() {
     const [plugins, setPlugins] = useState<PluginListItem[]>([]);

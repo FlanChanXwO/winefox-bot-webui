@@ -1,28 +1,50 @@
 "use client";
 
-import React, {useEffect, useState, useRef} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {
-    Card, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
-    Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Spinner,SortDescriptor
+    Button,
+    Card,
+    CardBody,
+    Input,
+    Modal,
+    ModalBody,
+    ModalContent,
+    ModalFooter,
+    ModalHeader,
+    SortDescriptor,
+    Spinner,
+    Table,
+    TableBody,
+    TableCell,
+    TableColumn,
+    TableHeader,
+    TableRow,
+    useDisclosure
 } from "@nextui-org/react";
 import {
-    FilePlus,
-    FolderPlus,
-    RefreshCw,
-    FolderOpen,
-    FileText,
-    Pencil,
-    Download,
-    Trash2,
     CornerUpLeft,
-    Image as ImageIcon
+    Download,
+    FilePlus,
+    FileText,
+    FolderOpen,
+    FolderPlus,
+    Image as ImageIcon,
+    Pencil,
+    RefreshCw,
+    Trash2
 } from "lucide-react";
 import {toast} from "sonner";
 import {
-    createFile, deleteFile, FileItem, getFileContent, getFiles, getDownloadUrl, getViewUrl, saveFileContent
+    createFile,
+    deleteFile,
+    FileItem,
+    getDownloadUrl,
+    getFileContent,
+    getFiles,
+    getViewUrl,
+    saveFileContent
 } from "@/api/fileManager";
-import { TOKEN_KEY } from "@/utils/request";
-import {useModalBackHandler} from "@/hooks/useModalBackHandler";
+import {TOKEN_KEY} from "@/utils/request";
 import {useSearchParams} from "next/dist/client/components/navigation";
 import {useRouter} from "next/navigation";
 // --- 辅助函数：判断是否为图片 ---

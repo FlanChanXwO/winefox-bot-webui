@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Button } from "@nextui-org/react";
-import { Trash2, Pause, Play} from 'lucide-react';
-import { useLogStore, LogEntry } from '@/store/useLogStore';
+import React, {useEffect, useRef, useState} from 'react';
+import {Button} from "@nextui-org/react";
+import {Pause, Play, Trash2} from 'lucide-react';
+import {LogEntry, useLogStore} from '@/store/useLogStore';
 import {LogItem} from "@/components/Log/LogItem";
 
 interface LogViewerProps {

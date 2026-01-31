@@ -1,21 +1,11 @@
 "use client";
-import React, { useState } from "react";
+import React, {useState} from "react";
 import {usePathname, useRouter} from "next/navigation";
-import {
-    Button,
-    ScrollShadow,
-    Image,
-} from "@nextui-org/react";
-import {
-    ChevronDown,
-    ChevronRight,
-    X,
-    PanelLeftClose,
-    PanelLeftOpen,
-    Bot
-} from "lucide-react";
-import { menuItems } from "@/config/menu";
+import {Button, Image, ScrollShadow,} from "@nextui-org/react";
+import {Bot, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen, X} from "lucide-react";
+import {menuItems} from "@/config/menu";
 import NextLink from "next/link";
+
 interface SidebarProps {
     isSidebarOpen: boolean;
     setIsSidebarOpen: (v: boolean) => void;

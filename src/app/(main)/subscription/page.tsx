@@ -1,13 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, {useState} from "react";
 import {
-    Card, CardBody, Button, Chip, Input, Avatar, AvatarGroup,
-    Listbox, ListboxItem, ScrollShadow, Divider, Badge
+    Avatar,
+    AvatarGroup,
+    Button,
+    Card,
+    CardBody,
+    Chip,
+    Input,
+    Listbox,
+    ListboxItem,
+    ScrollShadow
 } from "@nextui-org/react";
-import {
-    Bell, BellRing, UserPlus, Search, Trash2, Hash, AtSign, Zap
-} from "lucide-react";
+import {AtSign, Bell, BellRing, Hash, Search, Trash2, UserPlus, Zap} from "lucide-react";
 
 // --- 模拟数据 ---
 

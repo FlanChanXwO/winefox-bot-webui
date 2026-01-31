@@ -1,6 +1,6 @@
 import React from "react";
-import { Select, SelectItem, Switch, Input, Textarea } from "@nextui-org/react";
-import { PluginConfigField } from "@/api/plugin";
+import {Input, Select, SelectItem, Switch, Textarea} from "@nextui-org/react";
+import {PluginConfigField} from "@/api/plugin";
 
 interface Props {
     field: PluginConfigField;

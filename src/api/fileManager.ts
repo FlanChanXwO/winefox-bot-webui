@@ -1,5 +1,5 @@
-import request, {Result} from "@/utils/request";
-import { getApiConfig } from "@/utils/config";
+import request from "@/utils/request";
+import {getApiConfig} from "@/utils/config";
 
 // 后端返回的文件对象结构
 export interface FileItem {

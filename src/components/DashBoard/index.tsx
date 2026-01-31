@@ -3,7 +3,7 @@
 import ReactECharts from "echarts-for-react";
 import React, {useEffect, useRef, useState} from "react";
 import {Avatar, Card, CardBody, Chip} from "@nextui-org/react";
-import {User, Users, MessageSquare, Repeat, Server, Activity, Database} from "lucide-react";
+import {Activity, Database, MessageSquare, Repeat, Server, User, Users} from "lucide-react";
 import {useLogStore} from "@/store/useLogStore";
 import {useSystemStatus} from "@/hooks/useSystemStatus";
 import {useDashboardStore} from "@/hooks/useDashboardData";
@@ -11,7 +11,7 @@ import {useBotStore} from "@/store/useBotStore";
 import {FriendAndGroupStatsResponse, getFriendAndGroupStats} from "@/api/friendAndGroup";
 import {toast} from "sonner";
 import PluginApi from "@/api/plugin"; // 引入 PluginApi
-import { getActiveGroupStats } from "@/api/group";
+import {getActiveGroupStats} from "@/api/group";
 import {RankingItem} from "@/api/stats";
 import {formatLogTime} from "@/utils/time";
 import {LogItem} from "@/components/Log/LogItem";

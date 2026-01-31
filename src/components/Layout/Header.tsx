@@ -1,11 +1,11 @@
 "use client";
 import React from "react";
-import { usePathname } from "next/navigation";
-import { Button } from "@nextui-org/react";
-import { Menu, Globe, RefreshCw } from "lucide-react";
-import { useBotStore } from "@/store/useBotStore";
+import {usePathname} from "next/navigation";
+import {Button} from "@nextui-org/react";
+import {Globe, Menu, RefreshCw} from "lucide-react";
+import {useBotStore} from "@/store/useBotStore";
 import BotSwitcher from "./BotSwitcher";
-import { menuItems } from "@/config/menu";
+import {menuItems} from "@/config/menu";
 
 interface HeaderProps {
     setIsSidebarOpen: (v: boolean) => void;

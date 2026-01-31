@@ -1,33 +1,65 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, {useEffect, useMemo, useState} from "react";
 import {
-    Card, CardBody, Button, Chip, Switch, Tooltip,
-    Table, TableHeader, TableBody, TableColumn, TableRow, TableCell,
-    Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, useDisclosure,
-    Select, SelectItem, Spinner, Popover, PopoverTrigger, PopoverContent, Autocomplete, AutocompleteItem
+    Autocomplete,
+    AutocompleteItem,
+    Button,
+    Card,
+    CardBody,
+    Chip,
+    Input,
+    Modal,
+    ModalBody,
+    ModalContent,
+    ModalFooter,
+    ModalHeader,
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+    Select,
+    SelectItem,
+    Spinner,
+    Switch,
+    Table,
+    TableBody,
+    TableCell,
+    TableColumn,
+    TableHeader,
+    TableRow,
+    Tooltip,
+    useDisclosure
 } from "@nextui-org/react";
 import {
-    CalendarClock, Plus, Play, Trash2, Edit,
-    MessageCircle, Users, Terminal, RefreshCw, AlertCircle, Clock
+    AlertCircle,
+    CalendarClock,
+    Clock,
+    Edit,
+    MessageCircle,
+    Play,
+    Plus,
+    RefreshCw,
+    Terminal,
+    Trash2,
+    Users
 } from "lucide-react";
-import { toast } from "sonner";
-import { useBotStore } from "@/store/useBotStore";
+import {toast} from "sonner";
+import {useBotStore} from "@/store/useBotStore";
 import {
     getScheduleList,
     getTaskTypes,
-    saveScheduleTask,
-    updateTaskStatus,
-    triggerTask,
     removeTask,
+    saveScheduleTask,
     ScheduleTask,
-    TaskTypeOption,
     TargetType,
-    TaskSaveRequest
+    TaskSaveRequest,
+    TaskTypeOption,
+    triggerTask,
+    updateTaskStatus
 } from "@/api/schedule";
 import friendGroupApi from "@/api/friendGroup";
 import userApi from "@/api/user";
-import CronGeneratorPopup from "@/app/schedule/components/CronGeneratorPopup";
+import CronGeneratorPopup from "./components/CronGeneratorPopup";
 
 // 映射前端 Tab 到后端枚举
 const TAB_MAP: Record<string, TargetType> = {

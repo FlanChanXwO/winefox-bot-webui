@@ -1,6 +1,6 @@
-import { create } from 'zustand';
+import {create} from 'zustand';
 import request from '@/utils/request'; // 假设你的 axios 实例在这里
-import { toast } from 'sonner';
+import {toast} from 'sonner';
 
 // 对应后端的 BotInfoResponse
 export interface BotInfo {

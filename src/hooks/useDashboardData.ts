@@ -1,19 +1,16 @@
-
-import { create } from 'zustand';
-import { useBotStore } from "@/store/useBotStore";
+import {create} from 'zustand';
+import {useBotStore} from "@/store/useBotStore";
 import {
-    getSystemConfigs,
-    getConnectionLogs,
-    getConnectionSummary,
     ConfigItem,
     ConnectionLog,
-    ConnectionSummaryResponse, RankingItem
+    ConnectionSummaryResponse,
+    getConnectionLogs,
+    getConnectionSummary,
+    getSystemConfigs,
+    RankingItem
 } from "@/api/stats";
-import {
-    getMessageStatistics,
-    MessageStatisticsResponse
-} from "@/api/messageStats";
-import PluginApi,{InvokeSummaryResponse}  from "@/api/plugin";
+import {getMessageStatistics, MessageStatisticsResponse} from "@/api/messageStats";
+import PluginApi, {InvokeSummaryResponse} from "@/api/plugin";
 import {getActiveGroupStats} from "@/api/group";
 
 // --- Store 状态定义 ---

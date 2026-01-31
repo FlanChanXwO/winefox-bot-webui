@@ -1,5 +1,5 @@
-import axios, { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
-import { getApiConfig } from './config';
+import axios, {AxiosResponse, InternalAxiosRequestConfig} from 'axios';
+import {getApiConfig} from './config';
 
 // 定义通用的后端返回结构
 export interface Result<T> {

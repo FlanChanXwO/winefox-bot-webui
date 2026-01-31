@@ -1,14 +1,17 @@
 "use client";
 
 import React, {useState} from "react";
+import {Avatar, Badge, Button, Card, CardBody, Chip, Select, SelectItem, Switch, Textarea} from "@nextui-org/react";
+import {MoreHorizontal, UserPlus, Users} from "lucide-react";
 import {
-    Card, CardBody, Avatar, Button, Input, Chip, Textarea, Switch, Select, SelectItem, Badge
-} from "@nextui-org/react";
-import {
-    UserPlus, Settings, MoreHorizontal, Send, Trash2, Users, User
-} from "lucide-react";
-import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    ResponsiveContainer,
+    Tooltip as RechartsTooltip,
+    XAxis,
+    YAxis
 } from "recharts";
 
 // --- 模拟数据 ---

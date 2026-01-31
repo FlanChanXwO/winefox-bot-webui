@@ -1,14 +1,7 @@
 "use client";
 import React from "react";
-import {
-    Dropdown,
-    DropdownTrigger,
-    DropdownMenu,
-    DropdownItem,
-    Avatar,
-    Button
-} from "@nextui-org/react";
-import { useBotStore } from "@/store/useBotStore";
+import {Avatar, Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger} from "@nextui-org/react";
+import {useBotStore} from "@/store/useBotStore";
 
 export default function BotSwitcher() {
     const {

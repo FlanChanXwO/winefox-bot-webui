@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Modal, ModalContent, Button, Input, Spinner } from '@nextui-org/react';
-import { CheckCircle2, AlertCircle, Edit, ArrowLeft, XCircle, Globe, Server } from 'lucide-react';
-import { getApiConfig, saveApiConfig } from "@/utils/config";
-import { useSWRConfig } from "swr";
+import React, {useEffect, useState} from 'react';
+import {Button, Input, Modal, ModalContent, Spinner} from '@nextui-org/react';
+import {AlertCircle, ArrowLeft, CheckCircle2, Edit, Globe, Server, XCircle} from 'lucide-react';
+import {getApiConfig, saveApiConfig} from "@/utils/config";
+import {useSWRConfig} from "swr";
 import {Result} from "@/utils/request";
 import {useLogStore} from "@/store/useLogStore";
 

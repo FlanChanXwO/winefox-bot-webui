@@ -1,16 +1,16 @@
 import React from "react";
 import {
-    LayoutDashboard,
-    Terminal,
-    Clock,
     Bug,
-    MessageCircle,
-    Power,
-    Timer,
-    Newspaper,
-    Puzzle,
-    Home as HomeIcon,
+    Clock,
     FolderOpen,
+    Home as HomeIcon,
+    LayoutDashboard,
+    MessageCircle,
+    Newspaper,
+    Power,
+    Puzzle,
+    Terminal,
+    Timer,
 } from "lucide-react";
 
 export interface MenuItem {
@@ -25,7 +25,7 @@ export interface MenuItem {
 }
 
 export const menuItems: MenuItem[] = [
-    { id: "dashboard", href: "/", label: "仪表盘", icon: <LayoutDashboard size={20} /> },
+    { id: "dashboard", href: "/dashboard", label: "仪表盘", icon: <LayoutDashboard size={20} /> },
     {
         id: "logs",
         label: "日志查看",

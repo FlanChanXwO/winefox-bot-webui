@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { jwtDecode } from "jwt-decode";
-import { TOKEN_KEY } from "@/utils/request";
-import { useLogStore } from "@/store/useLogStore";
+import {useEffect, useRef, useState} from 'react';
+import {usePathname, useRouter} from 'next/navigation';
+import {jwtDecode} from "jwt-decode";
+import {TOKEN_KEY} from "@/utils/request";
+import {useLogStore} from "@/store/useLogStore";
 import PageLoading from "@/components/Common/PageLoading";
 
 // JWT Payload 接口定义
@@ -20,6 +20,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const disconnectWebSocket = useLogStore((state) => state.disconnectWebSocket);
+
+
+    // 辅助函数：标准化路径，移除尾部斜杠
+    // 例如: "/login/" -> "/login"
+    const normalizePath = (path: string) => path.replace(/\/+$/, "");
 
     const validateToken = () => {
         if (typeof window === 'undefined') return false;
@@ -43,12 +48,20 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         disconnectWebSocket();
         localStorage.removeItem(TOKEN_KEY);
         setAuthorized(false);
-        if (pathname !== '/login') {
+        const currentPath = normalizePath(window.location.pathname); // 使用 window.location 获取最新状态
+        if (currentPath !== '/login') {
             router.replace('/login');
         }
     };
 
     useEffect(() => {
+        // 登录页不需要 Token 也能访问
+        if (normalizePath(pathname) === '/login') {
+            setAuthorized(true);
+            return; // 登录页不需要启动定时检查
+        }
+
+        // 2. 非登录页，执行 Token 检查
         const isInitiallyValid = validateToken();
         if (!isInitiallyValid) {
             handleLogout();
@@ -56,6 +69,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
             setAuthorized(true);
         }
 
+        // 3. 启动定时检查 (仅在非登录页)
         intervalRef.current = setInterval(() => {
             const isValid = validateToken();
             if (!isValid) {
@@ -72,7 +86,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         };
     }, [router, pathname]);
 
-    if (!authorized) {
+    if (!authorized && normalizePath(pathname) !== '/login') {
         return <PageLoading />;
     }
 

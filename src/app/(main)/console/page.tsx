@@ -1,13 +1,18 @@
 "use client";
 
 import React, {useEffect, useRef, useState} from "react";
+import {Avatar, Button, Card, CardBody, Chip, CircularProgress} from "@nextui-org/react";
+import {Download} from "lucide-react";
 import {
-    Card, CardBody, Avatar, Chip, Button, CircularProgress, Select, SelectItem
-} from "@nextui-org/react";
-import { Power, Puzzle, Download } from "lucide-react";
-import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-    AreaChart, Area
+    Area,
+    AreaChart,
+    Bar,
+    BarChart,
+    CartesianGrid,
+    ResponsiveContainer,
+    Tooltip as RechartsTooltip,
+    XAxis,
+    YAxis
 } from "recharts";
 import {useBotStore} from "@/store/useBotStore";
 import {useDashboardStore} from "@/hooks/useDashboardData";

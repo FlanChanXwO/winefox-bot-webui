@@ -2,13 +2,23 @@
 
 import React, {useState} from 'react';
 import {
-    Card, CardBody, Input, Button, Link, Image, useDisclosure, ModalContent, ModalFooter, Modal, ModalBody,
-    ModalHeader
+    Button,
+    Card,
+    CardBody,
+    Image,
+    Input,
+    Link,
+    Modal,
+    ModalBody,
+    ModalContent,
+    ModalFooter,
+    ModalHeader,
+    useDisclosure
 } from '@nextui-org/react';
-import {Lock, User, LogIn, Eye, EyeOff, Globe, KeyRound} from 'lucide-react';
+import {Eye, EyeOff, Globe, KeyRound, Lock, LogIn, User} from 'lucide-react';
 import {motion} from 'framer-motion';
-import { useRouter } from 'next/navigation';
-import { login,resetPassword  } from '@/api/auth';
+import {useRouter} from 'next/navigation';
+import {login, resetPassword} from '@/api/auth';
 import {toast} from 'sonner';
 import ApiSettingsModal from "@/components/Common/ApiSettingsModal";
 

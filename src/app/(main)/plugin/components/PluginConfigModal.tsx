@@ -1,22 +1,37 @@
 // src/app/(home)/components/PluginList/components/PluginConfigModal.tsx
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, {useCallback, useEffect, useMemo, useState} from "react";
 import {
-    Modal, ModalContent, ModalHeader, ModalBody, ModalFooter,
-    Button, Spinner, Select, SelectItem, Tabs, Tab, Chip, Card, CardHeader, CardBody,  Autocomplete, AutocompleteItem
+    Autocomplete,
+    AutocompleteItem,
+    Button,
+    Card,
+    CardBody,
+    CardHeader,
+    Chip,
+    Modal,
+    ModalBody,
+    ModalContent,
+    ModalFooter,
+    ModalHeader,
+    Select,
+    SelectItem,
+    Spinner,
+    Tab,
+    Tabs
 } from "@nextui-org/react";
-import {Save, Globe, Users, User, RefreshCw, Trash2, List, Settings, AlertTriangle, Edit} from "lucide-react";
-import pluginApi, { PluginConfigSchema, ConfigItem } from "@/api/plugin";
-import { toast } from "sonner";
+import {Edit, Globe, List, RefreshCw, Save, Settings, Trash2, User, Users} from "lucide-react";
+import pluginApi, {ConfigItem, PluginConfigSchema} from "@/api/plugin";
+import {toast} from "sonner";
 import ConfigFormRender from "./ConfigFormRender";
 import friendGroupApi from "@/api/friendGroup";
 import userApi from "@/api/user";
 
 const SCOPE_OPTIONS: Record<string, { label: string, icon: React.ReactNode }> = {
-    GLOBAL: { label: "全局配置", icon: <Globe size={16} /> },
-    GROUP: { label: "群组专用", icon: <Users size={16} /> },
-    USER: { label: "用户专用", icon: <User size={16} /> }
+    GLOBAL: {label: "全局配置", icon: <Globe size={16}/>},
+    GROUP: {label: "群组专用", icon: <Users size={16}/>},
+    USER: {label: "用户专用", icon: <User size={16}/>}
 };
 
 interface PluginConfigModalProps {
@@ -32,7 +47,7 @@ interface GroupedConfig {
     items: ConfigItem[];
 }
 
-export default function PluginConfigModal({ isOpen, onClose, pluginId }: PluginConfigModalProps) {
+export default function PluginConfigModal({isOpen, onClose, pluginId}: PluginConfigModalProps) {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [schema, setSchema] = useState<PluginConfigSchema | null>(null);
@@ -295,18 +310,19 @@ export default function PluginConfigModal({ isOpen, onClose, pluginId }: PluginC
             <ModalContent>
                 {(onClose) => (
                     <>
-                        <ModalHeader className="flex flex-col gap-1 border-b border-gray-100">
-                            <div className="flex justify-between items-center">
-                                <span>{schema?.pluginName || '插件'} 配置</span>
-                                {schema?.description && (
-                                    <span className="text-xs font-normal text-gray-500 mr-8">{schema.description}</span>
-                                )}
+                        <ModalHeader className="flex flex-col gap-1 border-b border-gray-100 pr-10 pb-3">
+                            <div className="flex flex-col items-start gap-1">
+                                <span className="text-lg font-bold leading-tight">
+                                    {schema?.pluginName || '插件'} 配置
+                                </span>
+                                {schema?.description && (<span className="text-xs font-normal text-gray-500 leading-normal break-all"> {schema.description}</span>)}
                             </div>
                         </ModalHeader>
 
+
                         <ModalBody className="py-4 bg-gray-50/30">
                             {loading ? (
-                                <div className="flex justify-center py-10"><Spinner label="加载中..." /></div>
+                                <div className="flex justify-center py-10"><Spinner label="加载中..."/></div>
                             ) : (
                                 <div className="flex flex-col h-full">
                                     <Tabs
@@ -325,19 +341,25 @@ export default function PluginConfigModal({ isOpen, onClose, pluginId }: PluginC
                                             <div className="flex flex-col gap-4">
                                                 {/* 表单页的作用域选择 */}
                                                 {schema?.allowedScopes && schema.allowedScopes.length > 0 && (
-                                                    <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-                                                        <div className="text-xs font-bold text-gray-500 mb-2 ml-1">配置目标</div>
+                                                    <div
+                                                        className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                                                        <div
+                                                            className="text-xs font-bold text-gray-500 mb-2 ml-1">配置目标
+                                                        </div>
                                                         <div className="flex gap-3 items-end">
                                                             <Select
                                                                 label="作用域"
                                                                 size="sm"
                                                                 className="flex-1"
                                                                 selectedKeys={[targetScope]}
-                                                                onChange={(e) => { if(e.target.value) setTargetScope(e.target.value); }}
+                                                                onChange={(e) => {
+                                                                    if (e.target.value) setTargetScope(e.target.value);
+                                                                }}
                                                                 startContent={SCOPE_OPTIONS[targetScope]?.icon}
                                                             >
                                                                 {schema.allowedScopes.map(scope => (
-                                                                    <SelectItem key={scope} textValue={SCOPE_OPTIONS[scope]?.label}>
+                                                                    <SelectItem key={scope}
+                                                                                textValue={SCOPE_OPTIONS[scope]?.label}>
                                                                         <div className="flex items-center gap-2">
                                                                             {SCOPE_OPTIONS[scope]?.icon}
                                                                             <span>{SCOPE_OPTIONS[scope]?.label}</span>
@@ -377,7 +399,10 @@ export default function PluginConfigModal({ isOpen, onClose, pluginId }: PluginC
                                                             key={field.key}
                                                             field={field}
                                                             value={formValues[field.key]}
-                                                            onChange={(val) => setFormValues(prev => ({...prev, [field.key]: val}))}
+                                                            onChange={(val) => setFormValues(prev => ({
+                                                                ...prev,
+                                                                [field.key]: val
+                                                            }))}
                                                         />
                                                     ))}
                                                 </div>
@@ -391,9 +416,11 @@ export default function PluginConfigModal({ isOpen, onClose, pluginId }: PluginC
                                         }>
                                             <div className="flex flex-col gap-4">
                                                 {/* 列表页的筛选器 */}
-                                                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200">
+                                                <div
+                                                    className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200">
                                                     <div className="flex gap-2 items-center">
-                                                        <span className="text-sm font-bold text-gray-600">查看范围:</span>
+                                                        <span
+                                                            className="text-sm font-bold text-gray-600">查看范围:</span>
                                                         <div className="flex gap-1">
                                                             {schema?.allowedScopes.map(scope => (
                                                                 <Chip
@@ -410,33 +437,42 @@ export default function PluginConfigModal({ isOpen, onClose, pluginId }: PluginC
                                                             ))}
                                                         </div>
                                                     </div>
-                                                    <Button size="sm" isIconOnly variant="light" onPress={loadConfigList} isLoading={listLoading}>
-                                                        <RefreshCw size={14} />
+                                                    <Button size="sm" isIconOnly variant="light"
+                                                            onPress={loadConfigList} isLoading={listLoading}>
+                                                        <RefreshCw size={14}/>
                                                     </Button>
                                                 </div>
 
                                                 {/* 内容区域：卡片列表 */}
-                                                <div className="flex flex-col gap-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
+                                                <div
+                                                    className="flex flex-col gap-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
                                                     {listLoading ? (
                                                         <div className="py-8 text-center text-gray-400">加载中...</div>
                                                     ) : groupedConfigs.length === 0 ? (
-                                                        <div className="py-8 text-center flex flex-col items-center gap-2 text-gray-400">
+                                                        <div
+                                                            className="py-8 text-center flex flex-col items-center gap-2 text-gray-400">
                                                             <List size={32} className="opacity-20"/>
                                                             <p>该作用域下暂无自定义配置</p>
                                                         </div>
                                                     ) : (
                                                         groupedConfigs.map((group) => (
-                                                            <Card key={`${group.scope}_${group.scopeId}`} className="border border-gray-100 shadow-sm">
-                                                                <CardHeader className="flex justify-between items-center bg-gray-50/50 px-4 py-2 border-b border-gray-100">
+                                                            <Card key={`${group.scope}_${group.scopeId}`}
+                                                                  className="border border-gray-100 shadow-sm">
+                                                                <CardHeader
+                                                                    className="flex justify-between items-center bg-gray-50/50 px-4 py-2 border-b border-gray-100">
                                                                     <div className="flex items-center gap-2">
-                                                                        <div className="bg-white p-1 rounded-full border border-gray-200 text-gray-500">
-                                                                            {SCOPE_OPTIONS[group.scope]?.icon || <Settings size={14}/>}
+                                                                        <div
+                                                                            className="bg-white p-1 rounded-full border border-gray-200 text-gray-500">
+                                                                            {SCOPE_OPTIONS[group.scope]?.icon ||
+                                                                                <Settings size={14}/>}
                                                                         </div>
                                                                         <div className="flex flex-col">
-                                                                            <span className="text-sm font-bold text-gray-700">
+                                                                            <span
+                                                                                className="text-sm font-bold text-gray-700">
                                                                                 {SCOPE_OPTIONS[group.scope]?.label}
                                                                             </span>
-                                                                            <span className="text-[10px] font-mono text-gray-400">
+                                                                            <span
+                                                                                className="text-[10px] font-mono text-gray-400">
                                                                                 ID: {group.scopeId}
                                                                             </span>
                                                                         </div>
@@ -462,17 +498,24 @@ export default function PluginConfigModal({ isOpen, onClose, pluginId }: PluginC
                                                                 </CardHeader>
                                                                 <CardBody className="px-4 py-2 gap-2">
                                                                     {group.items.map(item => (
-                                                                        <div key={item.key} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-none">
-                                                                            <div className="flex flex-col gap-0.5 overflow-hidden">
-                                                                                <span className="text-xs font-medium text-gray-600 truncate" title={item.key}>
+                                                                        <div key={item.key}
+                                                                             className="flex justify-between items-center py-2 border-b border-gray-50 last:border-none">
+                                                                            <div
+                                                                                className="flex flex-col gap-0.5 overflow-hidden">
+                                                                                <span
+                                                                                    className="text-xs font-medium text-gray-600 truncate"
+                                                                                    title={item.key}>
                                                                                     {item.key}
                                                                                 </span>
-                                                                                <span className="text-[10px] text-gray-400 truncate">
+                                                                                <span
+                                                                                    className="text-[10px] text-gray-400 truncate">
                                                                                     {item.description || "无描述"}
                                                                                 </span>
                                                                             </div>
-                                                                            <div className="flex items-center gap-3 pl-2 flex-shrink-0">
-                                                                                <div className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 max-w-[120px] truncate">
+                                                                            <div
+                                                                                className="flex items-center gap-3 pl-2 flex-shrink-0">
+                                                                                <div
+                                                                                    className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 max-w-[120px] truncate">
                                                                                     {typeof item.value === 'object' ? JSON.stringify(item.value) : String(item.value)}
                                                                                 </div>
                                                                                 <Button
@@ -482,7 +525,7 @@ export default function PluginConfigModal({ isOpen, onClose, pluginId }: PluginC
                                                                                     className="text-gray-400 hover:text-red-500 min-w-6 w-6 h-6"
                                                                                     onPress={() => handleDeleteItem(item.key, group.scope, group.scopeId)}
                                                                                 >
-                                                                                    <Trash2 size={12} />
+                                                                                    <Trash2 size={12}/>
                                                                                 </Button>
                                                                             </div>
                                                                         </div>

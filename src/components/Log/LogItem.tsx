@@ -1,7 +1,7 @@
 import React, {memo, useState} from 'react';
 import {formatTime} from '@/utils/time';
 import {LogEntry} from '@/store/useLogStore';
-import {Popover, PopoverTrigger, PopoverContent} from "@nextui-org/react";
+import {Popover, PopoverContent, PopoverTrigger} from "@nextui-org/react";
 
 interface LogItemProps {
     log: LogEntry;
