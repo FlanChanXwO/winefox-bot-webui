@@ -221,6 +221,8 @@ export default function Login() {
                         <div className="space-y-2 ">
                             <label className="text-sm font-medium text-gray-500 ml-1">账号</label>
                             <Input
+                                name="username"
+                                autoComplete="username"
                                 size="lg"
                                 placeholder="请输入账号"
                                 value={username}
@@ -236,7 +238,9 @@ export default function Login() {
                             <Input
                                 size="lg"
                                 placeholder="请输入密码"
-                                type={!isPasswordVisible ? "text" : "password"}
+                                name="password"
+                                autoComplete="current-password"
+                                type={isPasswordVisible ? "text" : "password"}
                                 value={password}
                                 onValueChange={setPassword}
                                 startContent={

@@ -3,7 +3,7 @@
 import React, {useEffect, useState} from "react";
 import {Button, Card, CardBody, Chip, Spinner, useDisclosure} from "@nextui-org/react";
 import {Power, Settings, Trash2} from "lucide-react";
-import pluginApi, {PluginListItem} from "@/api/plugin";
+import pluginApi, {PluginListItem, PluginType} from "@/api/plugin";
 import {toast} from "sonner";
 import PluginConfigModal from "./components/PluginConfigModal";
 
@@ -80,6 +80,16 @@ export default function Page() {
                                 <div className="flex items-center gap-2 mb-1">
                                     <h3 className="text-lg font-bold text-pink-500 truncate" title={plugin.name}>{plugin.name}</h3>
                                     <Chip size="sm" className="bg-pink-100 text-pink-500 text-[10px] h-5 px-1 min-w-fit">{plugin.version}</Chip>
+                                    {plugin.type === "PASSIVE" && (
+                                        <Chip
+                                            size="sm"
+                                            color="secondary"
+                                            variant="flat"
+                                            className="text-[10px] h-5 px-1 min-w-fit"
+                                        >
+                                            被动
+                                        </Chip>
+                                    )}
                                 </div>
                                 <p className="text-xs text-gray-500 font-mono mb-1 line-clamp-2" title={plugin.description}>
                                     {plugin.description || "暂无描述"}

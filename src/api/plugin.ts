@@ -1,6 +1,8 @@
 import request from '@/utils/request';
 import {RankingItem} from "@/api/stats";
 
+export type PluginType = 'ACTIVE' | 'PASSIVE'
+
 // 对应后端的 PluginListItemResponse
 export interface PluginListItem {
     id: string;
@@ -8,7 +10,7 @@ export interface PluginListItem {
     description: string;
     version: string;
     author: string;
-    iconPath: string;
+    type: PluginType;
     enabled: boolean;
     builtIn: boolean;
     hasConfig: boolean;
