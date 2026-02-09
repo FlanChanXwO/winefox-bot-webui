@@ -5,7 +5,6 @@ export async function generateStaticParams() {
     return [
         { type: 'live' },
         { type: 'history' }, // 如果你有其他类型，都列在这里
-        { type: 'error' },
     ];
 }
 

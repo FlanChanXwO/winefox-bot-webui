@@ -1,8 +1,8 @@
 'use client';
 
-import React, {useEffect, useRef, useState} from 'react';
-import {Button} from "@nextui-org/react";
-import {Pause, Play, Trash2} from 'lucide-react';
+import React, {useEffect, useRef, useState, useMemo} from 'react';
+import {Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Selection} from "@nextui-org/react";
+import {Pause, Play, Trash2, Filter, ArrowUpWideNarrow, ArrowDownWideNarrow} from 'lucide-react';
 import {LogEntry, useLogStore} from '@/store/useLogStore';
 import {LogItem} from "@/components/Log/LogItem";
 
@@ -19,14 +19,43 @@ const LogViewer: React.FC<LogViewerProps> = ({ mode, staticData = [], autoScroll
     const logs = mode === 'live' ? liveLogs : staticData;
 
     const [isAutoScroll, setIsAutoScroll] = useState(autoScroll);
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [selectedKeys, setSelectedKeys] = useState<Selection>("all");
+
     const viewportRef = useRef<HTMLDivElement>(null);
+
+    const filteredLogs = useMemo(() => {
+        let result = [...logs];
+
+        // Filter
+        if (selectedKeys !== "all") {
+            result = result.filter(log => selectedKeys.has((log.level || 'INFO').toUpperCase()));
+        }
+
+        // Sort
+        result.sort((a, b) => {
+            const timeA = new Date(a.timestamp).getTime();
+            const timeB = new Date(b.timestamp).getTime();
+            return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+        });
+
+        return result;
+    }, [logs, selectedKeys, sortOrder]);
+
+    const toggleSort = () => {
+        setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    };
 
     // 自动滚动
     useEffect(() => {
         if (isAutoScroll && viewportRef.current) {
-            viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+            if (sortOrder === 'asc') {
+                viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+            } else {
+                viewportRef.current.scrollTop = 0;
+            }
         }
-    }, [logs, isAutoScroll]);
+    }, [filteredLogs, isAutoScroll, sortOrder]);
 
     return (
         <div
@@ -39,11 +68,50 @@ const LogViewer: React.FC<LogViewerProps> = ({ mode, staticData = [], autoScroll
                         (●'◡'●) {mode === 'live' ? '实时监控' : '归档记录'}
                     </h3>
                     <span className="text-xs text-gray-300 bg-gray-50 px-2 py-0.5 rounded-full ml-2">
-                        {logs.length} 条记录
+                        {filteredLogs.length} / {logs.length} 条记录
                     </span>
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <Dropdown>
+                        <DropdownTrigger>
+                            <Button
+                                isIconOnly
+                                size="sm"
+                                variant="light"
+                                className="text-gray-400 hover:text-pink-500"
+                                title="筛选级别"
+                            >
+                                <Filter size={16} />
+                            </Button>
+                        </DropdownTrigger>
+                        <DropdownMenu
+                            aria-label="Log Levels"
+                            closeOnSelect={false}
+                            selectionMode="multiple"
+                            selectedKeys={selectedKeys}
+                            onSelectionChange={setSelectedKeys}
+                        >
+                            <DropdownItem key="INFO">INFO</DropdownItem>
+                            <DropdownItem key="WARN" className="text-yellow-500">WARN</DropdownItem>
+                            <DropdownItem key="ERROR" className="text-red-500">ERROR</DropdownItem>
+                            <DropdownItem key="DEBUG" className="text-blue-500">DEBUG</DropdownItem>
+                        </DropdownMenu>
+                    </Dropdown>
+
+                    <Button
+                        isIconOnly
+                        size="sm"
+                        variant="light"
+                        className="text-gray-400 hover:text-pink-500"
+                        onPress={toggleSort}
+                        title={sortOrder === 'asc' ? "按时间正序" : "按时间倒序"}
+                    >
+                        {sortOrder === 'asc' ? <ArrowUpWideNarrow size={16}/> : <ArrowDownWideNarrow size={16}/>}
+                    </Button>
+
+                    <div className="w-px h-4 bg-gray-200 mx-1"></div>
+
                     {mode === 'live' && (
                         <>
                             <Button
@@ -76,15 +144,15 @@ const LogViewer: React.FC<LogViewerProps> = ({ mode, staticData = [], autoScroll
                 ref={viewportRef}
                 className="flex-1 overflow-y-auto p-6 font-mono text-sm leading-7 space-y-1 relative scroll-smooth"
             >
-                {logs.length === 0 ? (
+                {filteredLogs.length === 0 ? (
                     <div
                         className="h-full flex flex-col items-center justify-center text-gray-300 space-y-2 select-none">
                         <span className="text-6xl opacity-20">Zzz...</span>
-                        <p className="text-xs">暂时没有日志哦</p>
+                        <p className="text-xs">没有符合条件的日志哦</p>
                     </div>
                 ) : (
                     // 极简调用，默认 variant="default"
-                    logs.map((log, index) => (
+                    filteredLogs.map((log, index) => (
                         <LogItem key={index} log={log}/>
                     ))
                 )}
